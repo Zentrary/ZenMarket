@@ -1,6 +1,9 @@
 // Actual HTML entry points. IDs and filters use query parameters, never inline code.
 export const pagePaths = {
   "/": "/index.html",
+  "/contact": "/contact.html",
+  "/admin/dashboard": "/admin/dashboard.html",
+  "/admin/reviews": "/admin/reviews.html",
   "/shop": "/shop.html",
   "/collections": "/categories.html",
   "/product": "/product.html",
@@ -47,4 +50,37 @@ export function migrateLegacyLink(locationLike = location) {
   return locationLike.hash.startsWith("#/")
     ? pageURL(locationLike.hash.slice(1))
     : null;
+}
+
+export function safeReturnPath(value) {
+  if (
+    typeof value !== "string" ||
+    !value.startsWith("/") ||
+    value.startsWith("//")
+  )
+    return "";
+  try {
+    const u = new URL(value, "https://zenmarket.invalid");
+    if (
+      u.origin !== "https://zenmarket.invalid" ||
+      !Object.values(pagePaths).includes(u.pathname) ||
+      ["/login.html", "/register.html", "/reset-password.html"].includes(
+        u.pathname,
+      )
+    )
+      return "";
+    return u.pathname + u.search;
+  } catch {
+    return "";
+  }
+}
+export function needsMembership(route) {
+  return ![
+    "/",
+    "/login",
+    "/register",
+    "/reset-password",
+    "/privacy",
+    "/not-found",
+  ].includes(route);
 }

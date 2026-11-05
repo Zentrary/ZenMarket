@@ -23,8 +23,8 @@ insert into public.products(id,name,sku,category,price,image_url,stock) values('
 update public.categories set name='__test_renamed_category__' where name='__test_custom_category__';
 do $$ begin
  if (select category from public.products where sku='TEST-CUSTOM-ROLLBACK')<>'__test_renamed_category__' then raise exception 'Category rename did not cascade'; end if;
- begin delete from public.categories where name='__test_renamed_category__'; raise exception 'Deleted occupied category'; exception when foreign_key_violation then null; end;
- begin insert into public.products(name,sku,category,price,image_url,stock) values('Invalid','TEST-INVALID','__missing_category__',1,'/images/placeholder.svg',1); raise exception 'Unknown category accepted'; exception when foreign_key_violation then null; end;
+ begin delete from public.categories where name='__test_renamed_category__'; raise exception 'Deleted occupied category'; exception when foreign_key_violation or restrict_violation then null; end;
+ begin insert into public.products(name,sku,category,price,image_url,stock) values('Invalid','TEST-INVALID','__missing_category__',1,'/images/placeholder.svg',1); raise exception 'Unknown category accepted'; exception when foreign_key_violation or restrict_violation then null; end;
 end $$;
 update public.store_settings set shop_name='Test store',tagline='A test',shipping_fee=75,free_shipping_threshold=500,promptpay_id='0812345678',recipient_name='TEST ONLY' where singleton;
 reset role;

@@ -8,7 +8,7 @@ select set_config('test.admin_id',(select id::text from public.profiles where us
 update public.store_settings set promptpay_id='0812345678',recipient_name='TEST ONLY',shipping_fee=50,free_shipping_threshold=1000;
 set local role anon;
 do $$ begin
- if (select count(*) from public.products)<1 then raise exception 'Public catalogue missing'; end if;
+ begin perform * from public.products; raise exception 'FAIL: anonymous catalogue access'; exception when insufficient_privilege then null; end;
  begin perform * from public.orders; raise exception 'FAIL: anonymous read orders'; exception when insufficient_privilege then null; end;
  begin perform public.login_email('zenadmin'); raise exception 'FAIL: public email lookup'; exception when insufficient_privilege then null; end;
 end $$;

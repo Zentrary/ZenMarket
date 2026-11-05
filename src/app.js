@@ -1,3 +1,12 @@
+import { storeIconURL, checkoutRecipient } from "./customer.js";
+import { notify, confirmAction, flash, showFlash } from "./ui.js";
+import {
+  productImages,
+  safeSocialURL,
+  statusLabels,
+  reviewColumns,
+} from "./experience.js";
+import { needsMembership, safeReturnPath } from "./routes.js";
 import "@fontsource/prompt/thai-400.css";
 import "@fontsource/prompt/thai-500.css";
 import "@fontsource/prompt/thai-600.css";
@@ -124,6 +133,7 @@ const read = (key, fallback) => {
     return fallback;
   }
 };
+let addresses = [];
 let products = [],
   session = null,
   profile = null,
@@ -137,19 +147,14 @@ let products = [],
   routeVersion = 0;
 if (!Array.isArray(favorites)) favorites = [];
 const app = $("#app");
-function toast(text, error = false) {
-  const t = $("#toast");
-  t.textContent = text;
-  t.className = "show" + (error ? " error" : "");
-  clearTimeout(toast.timer);
-  toast.timer = setTimeout(() => (t.className = ""), 4500);
-}
+const toast = notify;
 function handleError(e) {
   console.error(e?.code || e?.name || "Request failed");
   toast(e?.message || "เกิดข้อผิดพลาด กรุณาลองอีกครั้ง", true);
 }
 const route = () => currentRoute();
-function go(path) {
+function go(path, message) {
+  if (message) flash(message);
   location.assign(pageURL(path));
 }
 const count = () => cart.reduce((n, x) => n + x.quantity, 0);
@@ -174,6 +179,7 @@ function addCart(id) {
 function pageContext() {
   return {
     products,
+    addresses,
     session,
     profile,
     admin,
@@ -198,6 +204,9 @@ function pageContext() {
     statusLabel,
     date,
     store,
+    productImages,
+    safeSocialURL,
+    reviewColumns,
     shippingFor,
     pageURL,
   };
@@ -209,6 +218,15 @@ function preparePage() {
       a.setAttribute("href", pageURL(a.getAttribute("href").slice(1))),
     );
   createIcons({ icons });
+  const icon = document.querySelector('link[rel="icon"]');
+  if (icon) {
+    icon.removeAttribute("type");
+    icon.href = storeIconURL(store.logo_url);
+    icon.onerror = () => {
+      icon.onerror = null;
+      icon.href = "/favicon.svg";
+    };
+  }
 }
 async function refreshStore() {
   if (!db) return;
@@ -242,12 +260,7 @@ function header() {
   const account = session
     ? `<a class="user-chip" href="/account.html" aria-label="บัญชี ${esc(profile?.username || session.user.email)}">${i("UserRound")}<span>@${esc(profile?.username || session.user.email)}</span></a><button type="button" class="logout-btn" data-action="logout">${i("LogOut")}<span>ออกจากระบบ</span></button>`
     : `<a class="btn secondary login-link" href="/login.html">${i("UserRound")} เข้าสู่ระบบ</a>`;
-  return `<a class="skip-link" href="#main-content">ข้ามไปเนื้อหาหลัก</a><header class="${managing ? "admin-header" : ""}"><div class="header-inner">${brand()}${managing ? '<span class="workspace-tag">ระบบจัดการร้านค้า</span>' : `<nav id="main-nav" aria-label="เมนูหลัก"><a class="${r === "/" ? "active" : ""}" href="/index.html">หน้าหลัก</a><a class="${r === "/shop" ? "active" : ""}" href="/shop.html">สินค้า</a><a class="${r === "/collections" ? "active" : ""}" href="/categories.html">หมวดหมู่</a><a class="${r === "/orders" ? "active" : ""}" href="/orders.html">คำสั่งซื้อ</a></nav>`}<div class="header-actions">${!managing ? `<a class="cart-link" href="/cart.html" aria-label="ตะกร้าสินค้า">${i("ShoppingBag")}<b data-cart-count>${count()}</b></a>` : ""}<div class="session-controls">${account}</div>${!managing ? `<button class="icon-btn mobile-menu" data-action="menu" aria-label="เปิดเมนู" aria-controls="main-nav" aria-expanded="false">${i("Menu")}</button>` : ""}</div></div></header>${!db ? '<div class="demo-banner">ยังไม่ได้เชื่อมต่อฐานข้อมูล — ไม่สามารถเข้าสู่ระบบหรือสั่งซื้อได้</div>' : ""}`;
-}
-function footer() {
-  if (route().startsWith("/admin"))
-    return `<footer class="workspace-footer"><span>${esc(store.shop_name)} · สำหรับเจ้าของร้าน</span><a href="/index.html">กลับหน้าร้าน ${i("ArrowUpRight")}</a></footer>`;
-  return `<footer><div class="footer-main"><div>${brand()}<p>${esc(store.tagline)}</p></div><div><h4>ร้านค้า</h4><a href="/shop.html">สินค้าทั้งหมด</a><a href="/categories.html">หมวดหมู่สินค้า</a><a href="/about.html">เกี่ยวกับร้าน</a></div><div><h4>ช่วยเหลือ</h4><a href="/orders.html">คำสั่งซื้อของฉัน</a><a href="/help.html">จัดส่งและชำระเงิน</a><a href="/privacy.html">ความเป็นส่วนตัว</a>${store.contact_email ? `<span class="footer-contact">${esc(store.contact_email)}</span>` : ""}${store.contact_phone ? `<span class="footer-contact">${esc(store.contact_phone)}</span>` : ""}</div></div><div class="footer-bottom"><span>© ${new Date().getFullYear()} ${esc(store.shop_name)}</span><a href="/admin/products.html">จัดการร้านค้า ${i("ArrowUpRight")}</a></div></footer>`;
+  return `<a class="skip-link" href="#main-content">ข้ามไปเนื้อหาหลัก</a><header class="${managing ? "admin-header" : ""}"><div class="header-inner">${brand()}${managing ? '<span class="workspace-tag">ระบบจัดการร้านค้า</span>' : `<nav id="main-nav" aria-label="เมนูหลัก"><a class="${r === "/" ? "active" : ""}" href="/index.html">หน้าหลัก</a><a class="${r === "/shop" ? "active" : ""}" href="/shop.html">สินค้า</a><a class="${r === "/orders" ? "active" : ""}" href="/orders.html">คำสั่งซื้อ</a><a class="${r === "/contact" ? "active" : ""}" href="/contact.html">ช่องทางการติดต่อ</a></nav>`}<div class="header-actions">${!managing ? `<a class="cart-link" href="/cart.html" aria-label="ตะกร้าสินค้า">${i("ShoppingBag")}<b data-cart-count>${count()}</b></a>` : ""}<div class="session-controls">${admin && !managing ? `<a href="/admin/dashboard.html" class="icon-btn dashboard-link" aria-label="แดชบอร์ดร้านค้า">${i("LayoutGrid")}</a>` : ""}${account}</div>${!managing ? `<button class="icon-btn mobile-menu" data-action="menu" aria-label="เปิดเมนู" aria-controls="main-nav" aria-expanded="false">${i("Menu")}</button>` : ""}</div></div></header>${!db ? '<div class="demo-banner">ยังไม่ได้เชื่อมต่อฐานข้อมูล — ไม่สามารถเข้าสู่ระบบหรือสั่งซื้อได้</div>' : ""}`;
 }
 const empty = (title, text, link = "/shop", label = "เลือกชมสินค้า") =>
   `<div class="empty">${i("ShoppingBag")}<h2>${title}</h2><p>${text}</p><a class="btn primary" href="#${link}">${label} ${i("ArrowRight")}</a></div>`;
@@ -296,13 +309,7 @@ function authPage(...args) {
 function checkoutPage(...args) {
   return createCheckoutPages(pageContext()).checkoutPage(...args);
 }
-const statusLabel = {
-  pending: "รอชำระเงิน",
-  review: "รอตรวจสอบสลิป",
-  paid: "ชำระเงินแล้ว",
-  shipped: "จัดส่งแล้ว",
-  cancelled: "ยกเลิกแล้ว",
-};
+const statusLabel = statusLabels;
 const date = (s) =>
   new Date(s).toLocaleString("th-TH", {
     dateStyle: "medium",
@@ -332,13 +339,15 @@ async function render() {
   let content = "";
   app.innerHTML =
     header() +
-    `<main class="wrap loading">กำลังจัดเตรียมสิ่งดีๆ ให้คุณ…</main>` +
-    footer();
+    `<main class="wrap loading">กำลังจัดเตรียมสิ่งดีๆ ให้คุณ…</main>`;
   try {
     if (r === "/") content = home();
     else if (r === "/shop") content = shop();
     else if (r === "/collections") content = collections();
-    else if (r.startsWith("/product/")) content = productPage(r.split("/")[2]);
+    else if (r.startsWith("/product/"))
+      content = await productPage(r.split("/")[2]);
+    else if (r === "/contact")
+      content = createStorePages(pageContext()).contactPage();
     else if (r === "/cart") content = cartPage();
     else if (r === "/checkout") content = checkoutPage();
     else if (r === "/login") content = authPage();
@@ -368,7 +377,7 @@ async function render() {
       );
     if (version !== routeVersion) return;
     if (!content.startsWith("<main")) content = "<main>" + content + "</main>";
-    app.innerHTML = header() + content + footer();
+    app.innerHTML = header() + content;
     preparePage();
     if (!$("main").id) $("main").id = "main-content";
     document.title = `${$("main h1")?.textContent || "ร้านค้าออนไลน์"} | ${store.shop_name}`;
@@ -376,12 +385,15 @@ async function render() {
     if (version !== routeVersion) return;
     app.innerHTML =
       header() +
-      empty("ไม่สามารถโหลดข้อมูลได้", esc(e.message || "กรุณาลองอีกครั้ง")) +
-      footer();
+      empty("ไม่สามารถโหลดข้อมูลได้", esc(e.message || "กรุณาลองอีกครั้ง"));
     preparePage();
   }
 }
 async function refreshProducts() {
+  if (!session) {
+    products = [];
+    return;
+  }
   if (db) {
     const { data, error } = await db
       .from("products")
@@ -396,6 +408,19 @@ async function refreshProducts() {
     products.some((p) => p.id === id && p.active),
   );
   localStorage.setItem("zen-favorites", JSON.stringify(favorites));
+}
+async function refreshAddresses() {
+  if (!db || !session) {
+    addresses = [];
+    return;
+  }
+  const { data, error } = await db
+    .from("customer_addresses")
+    .select("*")
+    .eq("user_id", session.user.id)
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  addresses = data || [];
 }
 async function refreshIdentity() {
   if (!db || !session) {
@@ -413,8 +438,9 @@ async function refreshIdentity() {
   admin = a.data === true;
 }
 function modal(content) {
-  document.querySelector("dialog")?.remove();
+  document.querySelector("dialog.editor-dialog")?.close();
   const dialog = document.createElement("dialog");
+  dialog.className = "editor-dialog";
   dialog.innerHTML = `<button class="modal-close icon-btn" data-action="close-modal" aria-label="ปิด">${i("X")}</button>${content}`;
   document.body.append(dialog);
   dialog.showModal();
@@ -426,7 +452,7 @@ function modal(content) {
 }
 function productModal(id) {
   if (categories.length < 2) {
-    toast("กรุณาเพิ่มหมวดหมู่สินค้าก่อน", true);
+    flash("กรุณาเพิ่มหมวดหมู่สินค้าก่อน", true);
     go("/admin/categories");
     return;
   }
@@ -440,8 +466,49 @@ function productModal(id) {
       )
       .join(
         "",
-      )}</select></label>${field("ราคา (บาท)", "price", "number", 'min="0.01" max="1000000" step="0.01"', p.price || "")}${field("จำนวนในสต็อก", "stock", "number", 'min="0" max="100000" step="1"', p.stock ?? "")}</div><label class="field"><span>รายละเอียดสินค้า</span><textarea name="description" maxlength="2000" rows="3">${esc(p.description || "")}</textarea></label><label class="field"><span>รูปสินค้า (JPG, PNG, WebP ไม่เกิน 5 MB) ${id ? "— ไม่เลือกเพื่อใช้รูปเดิม" : ""}</span><input type="file" name="image" accept="image/jpeg,image/png,image/webp" ${id ? "" : "required"}></label><label class="checkbox"><input type="checkbox" name="active" ${p.active !== false ? "checked" : ""}> เปิดขายสินค้า (นำเครื่องหมายออกเพื่อซ่อน)</label><p class="form-error" role="alert"></p><button type="submit" class="btn primary full">${i("Check")} บันทึกสินค้า</button></form>`,
+      )}</select></label>${field("ราคา (บาท)", "price", "number", 'min="0.01" max="1000000" step="0.01"', p.price || "")}${field("จำนวนในสต็อก", "stock", "number", 'min="0" max="100000" step="1"', p.stock ?? "")}</div><label class="field"><span>รายละเอียดสินค้า</span><textarea name="description" maxlength="2000" rows="3">${esc(p.description || "")}</textarea></label><label class="field"><span>รูปสินค้า (สูงสุด 8 รูป · JPG, PNG, WebP รูปละไม่เกิน 5 MB) ${id ? "— ไม่เลือกเพื่อใช้รูปเดิม" : ""}</span><input type="file" name="image" multiple accept="image/jpeg,image/png,image/webp" ${id ? "" : "required"}></label><div class="image-editor">${productImages(
+      p,
+    )
+      .map(
+        (url, index) =>
+          `<label class="retained-image"><img src="${safeImage(url)}" alt="รูปที่ ${index + 1}"><span><input type="checkbox" name="keep_image" value="${esc(url)}" checked> เก็บรูป ${index + 1}</span></label>`,
+      )
+      .join(
+        "",
+      )}</div><div id="image-preview" class="image-editor" aria-live="polite"></div><p class="muted">รูปแรกเป็นรูปปก เอาเครื่องหมายออกเพื่อนำรูปเดิมออก โดยคำสั่งซื้อเดิมยังเก็บรูปเดิมไว้</p><label class="checkbox"><input type="checkbox" name="active" ${p.active !== false ? "checked" : ""}> เปิดขายสินค้า (นำเครื่องหมายออกเพื่อซ่อน)</label><p class="form-error" role="alert"></p><button type="submit" class="btn primary full">${i("Check")} บันทึกสินค้า</button></form>`,
   );
+}
+function addressModal(id) {
+  const a = addresses.find((a) => a.id === id) || {};
+  if (!id && addresses.length >= 5) {
+    toast("บันทึกได้สูงสุด 5 ที่อยู่", true);
+    return;
+  }
+  modal(
+    `<h2>${id ? "แก้ไขที่อยู่" : "เพิ่มที่อยู่ใหม่"}</h2><form id="address-form" data-id="${a.id || ""}">${field("ชื่อเรียกที่อยู่", "label", "text", 'maxlength="40" placeholder="เช่น บ้าน หรือ ที่ทำงาน"', a.label || "")}${field("ชื่อผู้รับ", "recipient", "text", 'minlength="2" maxlength="150" autocomplete="name"', a.recipient || [profile?.first_name, profile?.last_name].filter(Boolean).join(" "))}${field("เบอร์โทรศัพท์", "phone", "tel", 'pattern="0[0-9]{9}" autocomplete="tel"', a.phone || profile?.phone || "")}<label class="field"><span>ที่อยู่จัดส่งครบถ้วน พร้อมรหัสไปรษณีย์</span><textarea name="address" required minlength="20" maxlength="1200" rows="4" autocomplete="street-address">${esc(a.address || "")}</textarea></label><label class="checkbox"><input type="checkbox" name="is_default" ${a.is_default || !addresses.length ? "checked" : ""}> ใช้เป็นที่อยู่หลัก</label><p class="form-error" role="alert"></p><button class="btn primary" type="submit">${i("Check")} บันทึกที่อยู่</button></form>`,
+  );
+}
+async function uploadShippingImages(form) {
+  const files = new FormData(form)
+    .getAll("shipping_images")
+    .filter((file) => file.size);
+  if (files.length > 4) throw Error("แนบรูปการจัดส่งได้สูงสุด 4 รูปต่ออัปเดต");
+  files.forEach(checkFile);
+  const paths = [];
+  for (const file of files) {
+    const path =
+      form.dataset.id +
+      "/" +
+      crypto.randomUUID() +
+      "." +
+      file.type.split("/")[1];
+    const { error } = await db.storage
+      .from("shipping-updates")
+      .upload(path, file, { contentType: file.type, upsert: false });
+    if (error) throw error;
+    paths.push(path);
+  }
+  return paths;
 }
 document.addEventListener("click", async (e) => {
   if (e.target.closest(".skip-link")) {
@@ -456,7 +523,49 @@ document.addEventListener("click", async (e) => {
   const action = button.dataset.action,
     id = button.dataset.id;
   try {
-    if (action === "add") addCart(id);
+    if (action === "edit-address") {
+      if (!session) throw Error("กรุณาเข้าสู่ระบบ");
+      addressModal(id);
+    } else if (action === "delete-address") {
+      if (
+        !(await confirmAction(
+          "ลบที่อยู่นี้จากสมุดที่อยู่? คำสั่งซื้อที่สร้างแล้วจะไม่เปลี่ยน",
+          { danger: true, title: "ลบที่อยู่" },
+        ))
+      )
+        return;
+      button.disabled = true;
+      const { error } = await db.rpc("delete_address", { p_id: id });
+      if (error) throw error;
+      await refreshAddresses();
+      await render();
+      toast("ลบที่อยู่แล้ว");
+    } else if (action === "view-shipping-photo") {
+      const { data, error } = await db.storage
+        .from("shipping-updates")
+        .createSignedUrl(button.dataset.path, 120);
+      if (error) throw error;
+      modal(
+        `<h2>รูปอัปเดตการจัดส่ง</h2><img class="shipping-photo-large" src="${esc(data.signedUrl)}" alt="รูปอัปเดตการจัดส่งขนาดใหญ่">`,
+      );
+    } else if (action === "refresh-shipping-images") {
+      button.disabled = true;
+      try {
+        await Promise.all(
+          [...document.querySelectorAll("img[data-shipping-path]")].map(
+            async (img) => {
+              const { data, error } = await db.storage
+                .from("shipping-updates")
+                .createSignedUrl(img.dataset.shippingPath, 120);
+              if (error) throw error;
+              img.src = data.signedUrl;
+            },
+          ),
+        );
+      } finally {
+        button.disabled = false;
+      }
+    } else if (action === "add") addCart(id);
     else if (action === "favorite") {
       favorites = favorites.includes(id)
         ? favorites.filter((x) => x !== id)
@@ -547,11 +656,11 @@ document.addEventListener("click", async (e) => {
     } else if (action === "delete-category") {
       if (!admin) throw Error("ไม่มีสิทธิ์");
       if (
-        !confirm(
+        !(await confirmAction(
           "ลบหมวดหมู่ " +
             button.dataset.name +
             "? ลบได้เฉพาะหมวดหมู่ที่ไม่มีสินค้า",
-        )
+        ))
       )
         return;
       button.disabled = true;
@@ -561,13 +670,54 @@ document.addEventListener("click", async (e) => {
         .eq("name", button.dataset.name);
       if (error)
         throw Error(
-          error.code === "23503"
+          ["23503", "23001"].includes(error.code)
             ? "หมวดหมู่นี้ยังมีสินค้า กรุณาย้ายสินค้าไปหมวดอื่นก่อน"
             : error.message,
         );
       await refreshStore();
       render();
       toast("ลบหมวดหมู่แล้ว");
+    } else if (action === "delete-product") {
+      if (!admin) throw Error("ไม่มีสิทธิ์");
+      const product = products.find((p) => p.id === id);
+      if (
+        !(await confirmAction(
+          "ลบ “" +
+            (product?.name || "สินค้านี้") +
+            "” อย่างถาวร? สินค้าจะหายจากหน้าร้าน แต่ประวัติคำสั่งซื้อและรีวิวเดิมยังอยู่",
+          { danger: true, title: "ลบสินค้า", accept: "ลบสินค้า" },
+        ))
+      )
+        return;
+      button.disabled = true;
+      const { error } = await db.from("products").delete().eq("id", id);
+      if (error) throw error;
+      await refreshProducts();
+      await render();
+      toast("ลบสินค้าแล้ว");
+    } else if (action === "gallery-image") {
+      const image = document.querySelector("#gallery-main");
+      image.src = button.dataset.src;
+      image.alt = button.dataset.alt;
+      document
+        .querySelectorAll("[data-action=gallery-image]")
+        .forEach((b) => b.setAttribute("aria-pressed", String(b === button)));
+    } else if (action === "receive-order") {
+      if (
+        !(await confirmAction(
+          "ยืนยันว่าได้รับสินค้าและตรวจสอบเรียบร้อยแล้ว? หลังยืนยันคุณจะให้ดาวและเขียนรีวิวได้",
+          { title: "ยืนยันรับสินค้า", accept: "ได้รับสินค้าแล้ว" },
+        ))
+      )
+        return;
+      button.disabled = true;
+      const { error } = await db.rpc("transition_order", {
+        order_id: id,
+        next_status: "delivered",
+      });
+      if (error) throw error;
+      await render();
+      toast("ยืนยันรับสินค้าแล้ว ขอบคุณที่อุดหนุน เขียนรีวิวด้านล่างได้เลย");
     } else if (action === "edit-product") {
       if (admin) productModal(id);
     } else if (action === "close-modal") button.closest("dialog").close();
@@ -578,11 +728,11 @@ document.addEventListener("click", async (e) => {
     } else if (action === "change-password") go("/reset-password");
     else if (["cancel-order", "approve-order"].includes(action)) {
       if (
-        !confirm(
+        !(await confirmAction(
           action === "approve-order"
             ? "คุณตรวจสอบยอดเข้าบัญชีจริงตรงกับรายการนี้แล้วใช่ไหม?"
             : "ยืนยันยกเลิกคำสั่งซื้อ? หากชำระแล้วห้ามยกเลิก โปรดให้ร้านตรวจสอบก่อน",
-        )
+        ))
       )
         return;
       button.disabled = true;
@@ -600,7 +750,77 @@ document.addEventListener("click", async (e) => {
     button.disabled = false;
   }
 });
+let previewURLs = [];
+function clearPreviews() {
+  previewURLs.forEach((url) => URL.revokeObjectURL(url));
+  previewURLs = [];
+}
+document.addEventListener(
+  "close",
+  (event) => {
+    if (event.target.matches?.(".editor-dialog")) clearPreviews();
+  },
+  true,
+);
 document.addEventListener("change", (e) => {
+  if (e.target.id === "saved-address") {
+    const delivery = checkoutRecipient(
+      addresses.find((a) => a.id === e.target.value),
+      profile,
+    );
+    const form = e.target.form;
+    for (const key of ["recipient", "phone", "address"])
+      form.elements[key].value = delivery[key];
+  }
+  if (e.target.name === "shipping_images") {
+    clearPreviews();
+    const preview = e.target.form.querySelector(".shipping-preview");
+    preview?.replaceChildren();
+    try {
+      const files = [...e.target.files];
+      if (files.length > 4)
+        throw Error("แนบรูปการจัดส่งได้สูงสุด 4 รูปต่ออัปเดต");
+      files.forEach(checkFile);
+      files.forEach((file, index) => {
+        const url = URL.createObjectURL(file);
+        previewURLs.push(url);
+        const img = document.createElement("img");
+        img.src = url;
+        img.alt = "รูปการจัดส่ง " + (index + 1);
+        preview?.append(img);
+      });
+    } catch (error) {
+      e.target.value = "";
+      handleError(error);
+    }
+  }
+  if (e.target.name === "image") {
+    clearPreviews();
+    const preview = document.querySelector("#image-preview");
+    if (!preview) return;
+    preview.replaceChildren();
+    try {
+      const files = [...e.target.files];
+      if (
+        files.length +
+          document.querySelectorAll("[name=keep_image]:checked").length >
+        8
+      )
+        throw Error("ใส่รูปสินค้าได้สูงสุด 8 รูป");
+      files.forEach(checkFile);
+      files.forEach((file, index) => {
+        const url = URL.createObjectURL(file);
+        previewURLs.push(url);
+        const img = document.createElement("img");
+        img.src = url;
+        img.alt = "รูปใหม่ " + (index + 1);
+        preview.append(img);
+      });
+    } catch (error) {
+      e.target.value = "";
+      handleError(error);
+    }
+  }
   if (e.target.id === "sort") {
     sort = e.target.value;
     $("#catalog-list").innerHTML = catalogList(route() === "/" ? 8 : undefined);
@@ -645,7 +865,55 @@ document.addEventListener("submit", async (e) => {
       return;
     }
     if (!db) throw Error("ยังไม่ได้ตั้งค่าการเชื่อมต่อ Supabase");
-    if (form.id === "register-form") {
+    if (form.id === "profile-form") {
+      const { error } = await db.rpc("save_profile", {
+        p_first_name: data.first_name.trim(),
+        p_last_name: data.last_name.trim(),
+        p_nickname: data.nickname.trim(),
+        p_phone: data.phone.trim(),
+        p_age: Number(data.age),
+        p_username: data.username.trim().toLowerCase(),
+      });
+      if (error)
+        throw Error(
+          error.code === "23505"
+            ? "ชื่อผู้ใช้นี้มีผู้ใช้แล้ว กรุณาเลือกชื่ออื่น"
+            : error.code === "23514"
+              ? "กรุณาตรวจสอบรูปแบบข้อมูลโปรไฟล์"
+              : error.message,
+        );
+      await refreshIdentity();
+      await render();
+      toast("บันทึกโปรไฟล์แล้ว");
+    } else if (form.id === "address-form") {
+      const { error } = await db.rpc("save_address", {
+        p_id: form.dataset.id || null,
+        p_label: data.label.trim(),
+        p_recipient: data.recipient.trim(),
+        p_phone: data.phone.trim(),
+        p_address: data.address.trim(),
+        p_default: data.is_default === "on",
+      });
+      if (error) throw error;
+      form.closest("dialog").close();
+      await refreshAddresses();
+      await render();
+      toast("บันทึกที่อยู่แล้ว");
+    } else if (form.id === "email-form") {
+      const email = data.email.trim();
+      if (email.toLowerCase() === session.user.email.toLowerCase())
+        throw Error("กรุณาใช้อีเมลใหม่ที่ต่างจากอีเมลปัจจุบัน");
+      const { data: result, error } = await db.auth.updateUser(
+        { email },
+        { emailRedirectTo: location.origin + "/account.html" },
+      );
+      if (error) throw error;
+      if (result?.user) session = { ...session, user: result.user };
+      await render();
+      toast(
+        "ส่งคำขอเปลี่ยนอีเมลแล้ว โปรดยืนยันจากอีเมลที่ระบบส่งให้ อีเมลเดิมจะยังใช้จนกว่าการยืนยันเสร็จ",
+      );
+    } else if (form.id === "register-form") {
       checkPassword(data);
       const { error } = await db.auth.signUp({
         email: data.email.trim(),
@@ -693,8 +961,10 @@ document.addEventListener("submit", async (e) => {
       session = result.session;
       await refreshIdentity();
       await refreshProducts();
-      go(admin ? "/admin/products" : "/account");
-      toast("ยินดีต้อนรับกลับมาครับ");
+      location.assign(
+        safeReturnPath(new URLSearchParams(location.search).get("next")) ||
+          (admin ? "/admin/dashboard.html" : "/shop.html"),
+      );
     } else if (form.id === "checkout-form") {
       if (!session) throw Error("กรุณาเข้าสู่ระบบ");
       if (!form.dataset.request) form.dataset.request = crypto.randomUUID();
@@ -711,8 +981,7 @@ document.addEventListener("submit", async (e) => {
       cart = [];
       saveCart();
       await refreshProducts();
-      go("/order/" + order.id);
-      toast("สร้างคำสั่งซื้อแล้ว กรุณาชำระเงินและแนบสลิป");
+      go("/order/" + order.id, "สร้างคำสั่งซื้อแล้ว กรุณาชำระเงินและแนบสลิป");
     } else if (form.id === "slip-form") {
       checkFile(data.slip);
       const ext = data.slip.type.split("/")[1];
@@ -731,6 +1000,19 @@ document.addEventListener("submit", async (e) => {
       if (attach) throw attach;
       render();
       toast("ส่งสลิปแล้ว ร้านจะตรวจสอบยอดเงินจริง");
+    } else if (form.matches(".review-form")) {
+      const rating = Number(data.rating);
+      if (!Number.isInteger(rating) || rating < 1 || rating > 5)
+        throw Error("กรุณาเลือกคะแนน 1–5 ดาว");
+      const { error } = await db.rpc("save_review", {
+        p_order_id: form.dataset.order,
+        p_product_id: form.dataset.product,
+        p_rating: rating,
+        p_comment: data.comment || "",
+      });
+      if (error) throw error;
+      await render();
+      toast("บันทึกรีวิวแล้ว ขอบคุณสำหรับความคิดเห็นของคุณ");
     } else if (form.id === "store-form") {
       if (!admin) throw Error("ไม่มีสิทธิ์");
       const record = {};
@@ -744,6 +1026,14 @@ document.addEventListener("submit", async (e) => {
         "shipping_note",
       ])
         record[key] = String(data[key] || "").trim();
+      for (const key of ["facebook_url", "instagram_url", "line_url"]) {
+        const value = String(data[key] || "").trim();
+        record[key] = safeSocialURL(value, key);
+        if (value && !record[key])
+          throw Error(
+            "กรุณาใช้ลิงก์ HTTPS ของ Facebook, Instagram หรือ LINE ให้ตรงช่อง",
+          );
+      }
       record.shipping_fee = Number(data.shipping_fee);
       record.free_shipping_threshold = Number(data.free_shipping_threshold);
       if (!record.shop_name) throw Error("กรุณาระบุชื่อร้าน");
@@ -795,21 +1085,22 @@ document.addEventListener("submit", async (e) => {
       toast("บันทึกบัญชีรับเงินแล้ว");
     } else if (form.id === "product-form") {
       if (!admin) throw Error("ไม่มีสิทธิ์");
-      let image = products.find((p) => p.id === form.dataset.id)?.image_url;
-      if (data.image.size) {
-        checkFile(data.image);
-        const path = `${crypto.randomUUID()}.${data.image.type.split("/")[1]}`;
-        const { error } = await db.storage
-          .from("product-images")
-          .upload(path, data.image, {
-            contentType: data.image.type,
-            upsert: false,
-          });
-        if (error) throw error;
-        image = db.storage.from("product-images").getPublicUrl(path)
-          .data.publicUrl;
-      }
-      if (!image) throw Error("กรุณาเลือกรูปสินค้า");
+      const values = new FormData(form);
+      const existing = productImages(
+        products.find((p) => p.id === form.dataset.id),
+      );
+      const retained = values
+        .getAll("keep_image")
+        .filter((url) => existing.includes(url));
+      const files = values.getAll("image").filter((file) => file.size);
+      if (retained.length + files.length > 8)
+        throw Error("ใส่รูปสินค้าได้สูงสุด 8 รูป");
+      if (!retained.length && !files.length)
+        throw Error("กรุณาใส่รูปสินค้าอย่างน้อย 1 รูป");
+      files.forEach(checkFile);
+      const imageURLs = [...retained];
+      for (const file of files)
+        imageURLs.push(await uploadImage("product-images", file));
       const record = {
         name: data.name.trim(),
         sku: data.sku.trim(),
@@ -818,7 +1109,8 @@ document.addEventListener("submit", async (e) => {
         price: Number(data.price),
         stock: Number(data.stock),
         active: data.active === "on",
-        image_url: image,
+        image_url: imageURLs[0],
+        image_urls: imageURLs,
       };
       const { error } = await (form.dataset.id
         ? db.from("products").update(record).eq("id", form.dataset.id)
@@ -829,17 +1121,39 @@ document.addEventListener("submit", async (e) => {
         );
       await refreshProducts();
       form.closest("dialog").close();
-      render();
+      await render();
       toast("บันทึกสินค้าแล้ว");
-    } else if (form.id === "ship-form") {
-      const { error } = await db.rpc("transition_order", {
-        order_id: form.dataset.id,
-        next_status: "shipped",
-        tracking_number: data.tracking.trim(),
-      });
+    } else if (form.id === "ship-form" || form.id === "shipping-update-form") {
+      if (!admin) throw Error("สำหรับเจ้าของร้านเท่านั้น");
+      const message = String(data.shipping_message || "").trim();
+      if (
+        form.id === "shipping-update-form" &&
+        !message &&
+        !new FormData(form).getAll("shipping_images").some((file) => file.size)
+      )
+        throw Error("กรุณาระบุข้อความ หรือแนบรูปการจัดส่ง");
+      const images = await uploadShippingImages(form);
+      const { error } = await db.rpc(
+        form.id === "ship-form"
+          ? "ship_order_with_update"
+          : "add_shipping_update",
+        {
+          p_order_id: form.dataset.id,
+          p_message: message,
+          p_images: images,
+          ...(form.id === "ship-form"
+            ? { p_tracking: data.tracking.trim() }
+            : {}),
+        },
+      );
       if (error) throw error;
-      render();
-      toast("บันทึกการจัดส่งแล้ว");
+      clearPreviews();
+      await render();
+      toast(
+        form.id === "ship-form"
+          ? "บันทึกการจัดส่งแล้ว"
+          : "เผยแพร่อัปเดตการจัดส่งแล้ว",
+      );
     } else if (form.id === "forgot-form") {
       const { error } = await db.auth.resetPasswordForEmail(data.email.trim(), {
         redirectTo: location.origin + "/reset-password.html",
@@ -851,13 +1165,12 @@ document.addEventListener("submit", async (e) => {
       checkPassword(data);
       const { error } = await db.auth.updateUser({ password: data.password });
       if (error) throw error;
-      go("/account");
-      toast("เปลี่ยนรหัสผ่านเรียบร้อยแล้ว");
+      go("/account", "เปลี่ยนรหัสผ่านเรียบร้อยแล้ว");
     }
   } catch (err) {
     if (errorBox)
       errorBox.textContent = err.message || "เกิดข้อผิดพลาด กรุณาลองอีกครั้ง";
-    else handleError(err);
+    handleError(err);
   } finally {
     if (submit) submit.disabled = false;
   }
@@ -887,12 +1200,22 @@ async function init() {
       session = data.session;
       await refreshIdentity();
     }
+    if (!session && needsMembership(route())) {
+      location.replace(
+        "/register.html?next=" +
+          encodeURIComponent(location.pathname + location.search),
+      );
+      return;
+    }
     await refreshStore();
     await refreshProducts();
+    if (session && ["/account", "/checkout"].includes(route()))
+      await refreshAddresses();
     loading = false;
     if (recovering) go("/reset-password");
     else {
-      render();
+      await render();
+      showFlash();
       const logoutStatus = new URLSearchParams(location.search).get(
         "loggedOut",
       );
@@ -911,8 +1234,7 @@ async function init() {
         "โปรดลองรีเฟรชหน้าอีกครั้ง หรือตรวจสอบการเชื่อมต่ออินเทอร์เน็ต",
         "/",
         "ลองอีกครั้ง",
-      ) +
-      footer();
+      );
     preparePage();
     handleError(e);
   }
@@ -930,3 +1252,51 @@ document.addEventListener("keydown", (e) => {
   }
 });
 if (!legacyLink) init();
+
+// Poll only catalogue/cart pages; never replace a checkout/profile/review form.
+// No service key, broad realtime publication or private order subscription needed.
+let refreshingInventory = false;
+async function refreshVisibleInventory() {
+  if (
+    loading ||
+    refreshingInventory ||
+    !session ||
+    !db ||
+    document.visibilityState !== "visible" ||
+    document.querySelector("dialog[open]") ||
+    (!["/shop", "/favorites", "/cart"].includes(route()) &&
+      !route().startsWith("/product/"))
+  )
+    return;
+  const userId = session.user.id;
+  const previous = JSON.stringify(products);
+  const draft = document.querySelector("[name=search]")?.value;
+  const selected = document.querySelector(
+    ".gallery-thumbnails [aria-pressed=true]",
+  )?.dataset.src;
+  refreshingInventory = true;
+  try {
+    await refreshProducts();
+    if (session?.user.id !== userId) return;
+    if (previous !== JSON.stringify(products)) {
+      await render();
+      if (draft !== undefined && document.querySelector("[name=search]"))
+        document.querySelector("[name=search]").value = draft;
+      if (selected) {
+        const thumb = [
+          ...document.querySelectorAll("[data-action=gallery-image]"),
+        ].find((b) => b.dataset.src === selected);
+        thumb?.click();
+      }
+    }
+  } catch (error) {
+    console.warn("Inventory refresh unavailable");
+  } finally {
+    refreshingInventory = false;
+  }
+}
+setInterval(refreshVisibleInventory, 20000);
+window.addEventListener("focus", refreshVisibleInventory);
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") refreshVisibleInventory();
+});
