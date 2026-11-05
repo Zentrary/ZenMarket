@@ -1,10 +1,11 @@
 -- Run against the isolated ZenMarket test project as postgres. Always rolls back.
 -- Requires the two test profiles. Creates its own rollback-only product; never seeds the real shop.
 begin;
+insert into public.categories(name) values('ไลฟ์สไตล์'),('แฟชั่น') on conflict do nothing;
 insert into public.products(id,name,sku,category,price,image_url,stock) values('a3000000-0000-4000-8000-000000000001','Security test fixture','TEST-ONLY-ROLLBACK','ไลฟ์สไตล์',390,'/images/placeholder.svg',10);
 select set_config('test.user_id',(select id::text from public.profiles where username='zenuser'),true);
 select set_config('test.admin_id',(select id::text from public.profiles where username='zenadmin'),true);
-update public.store_settings set promptpay_id='0812345678',recipient_name='TEST ONLY';
+update public.store_settings set promptpay_id='0812345678',recipient_name='TEST ONLY',shipping_fee=50,free_shipping_threshold=1000;
 set local role anon;
 do $$ begin
  if (select count(*) from public.products)<1 then raise exception 'Public catalogue missing'; end if;

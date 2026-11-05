@@ -56,7 +56,17 @@ import {
   validateCart,
   reconcileCart,
 } from "./lib.js";
-import { categories } from "./catalog.js";
+import { defaultSettings, normalizeSettings, shippingFor } from "./settings.js";
+import { pageURL, currentRoute, migrateLegacyLink } from "./routes.js";
+import { createStorePages } from "./pages/store.js";
+import { createCheckoutPages } from "./pages/checkout.js";
+import { createAccountPages } from "./pages/account.js";
+import { createAdminPages } from "./pages/admin.js";
+let store = { ...defaultSettings };
+let categories = [{ name: "ทั้งหมด", icon: "LayoutGrid" }];
+let signingOut = false;
+const legacyLink = migrateLegacyLink();
+if (legacyLink) location.replace(legacyLink);
 const icons = {
   ArrowRight,
   ArrowUpRight,
@@ -120,7 +130,7 @@ let products = [],
   admin = false,
   cart = validateCart(read("zen-cart", [])),
   favorites = read("zen-favorites", []),
-  category = "ทั้งหมด",
+  category = new URLSearchParams(location.search).get("category") || "ทั้งหมด",
   search = "",
   sort = "recommended",
   loading = true,
@@ -138,10 +148,9 @@ function handleError(e) {
   console.error(e?.code || e?.name || "Request failed");
   toast(e?.message || "เกิดข้อผิดพลาด กรุณาลองอีกครั้ง", true);
 }
-const route = () => location.hash.slice(1) || "/";
+const route = () => currentRoute();
 function go(path) {
-  if (route() === path) render();
-  else location.hash = path;
+  location.assign(pageURL(path));
 }
 const count = () => cart.reduce((n, x) => n + x.quantity, 0);
 function saveCart() {
@@ -162,111 +171,130 @@ function addCart(id) {
   saveCart();
   toast("เพิ่มลงตะกร้าแล้ว ไปช้อปต่อได้เลย");
 }
+function pageContext() {
+  return {
+    products,
+    session,
+    profile,
+    admin,
+    db,
+    cart,
+    favorites,
+    categories,
+    category,
+    search,
+    sort,
+    i,
+    money,
+    esc,
+    safeImage,
+    field,
+    empty,
+    pageHead,
+    count,
+    route,
+    QRCode,
+    promptpayPayload,
+    statusLabel,
+    date,
+    store,
+    shippingFor,
+    pageURL,
+  };
+}
+function preparePage() {
+  document
+    .querySelectorAll('a[href^="#/"]')
+    .forEach((a) =>
+      a.setAttribute("href", pageURL(a.getAttribute("href").slice(1))),
+    );
+  createIcons({ icons });
+}
+async function refreshStore() {
+  if (!db) return;
+  const [settingsResult, categoriesResult] = await Promise.all([
+    db.rpc("get_storefront"),
+    db.from("categories").select("*").order("created_at", { ascending: true }),
+  ]);
+  if (settingsResult.error) throw settingsResult.error;
+  if (categoriesResult.error) throw categoriesResult.error;
+  store = normalizeSettings(settingsResult.data);
+  categories = [
+    { name: "ทั้งหมด", icon: "LayoutGrid" },
+    ...(categoriesResult.data || []).map((c) => ({ ...c, icon: "Package" })),
+  ];
+}
+async function uploadImage(bucket, file) {
+  checkFile(file);
+  const path = crypto.randomUUID() + "." + file.type.split("/")[1];
+  const { error } = await db.storage
+    .from(bucket)
+    .upload(path, file, { contentType: file.type, upsert: false });
+  if (error) throw error;
+  return db.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+}
+function brand() {
+  return `<a href="/index.html" class="brand" aria-label="${esc(store.shop_name)} หน้าหลัก">${store.logo_url ? `<img class="shop-logo" src="${safeImage(store.logo_url)}" alt="">` : `<span class="brand-mark">${i("ShoppingBag")}</span>`}<span>${esc(store.shop_name)}</span></a>`;
+}
 function header() {
   const r = route();
-  return `<a class="skip-link" href="#main-content">ข้ามไปเนื้อหาหลัก</a><div class="announcement">จัดส่ง 50 บาท · ฟรีเมื่อซื้อครบ 1,000 บาท</div><header><div class="header-inner"><a href="#/" class="brand" aria-label="ZenMarket หน้าหลัก"><span class="brand-mark">${i("ShoppingBag")}</span>ZenMarket</a><nav id="main-nav" aria-label="เมนูหลัก"><a class="${r === "/" ? "active" : ""}" href="#/">หน้าหลัก</a><a class="${r === "/shop" ? "active" : ""}" href="#/shop">สินค้า</a><a class="${r === "/collections" ? "active" : ""}" href="#/collections">หมวดหมู่</a><a class="${r === "/orders" ? "active" : ""}" href="#/orders">คำสั่งซื้อ</a></nav><div class="header-actions"><button class="icon-btn" data-action="search" aria-label="ค้นหาสินค้า">${i("Search")}</button><a class="icon-btn favorite-head" href="#/favorites" aria-label="รายการโปรด">${i("Heart")}</a><a class="icon-btn" href="${session ? "#/account" : "#/login"}" aria-label="บัญชีของฉัน">${i("UserRound")}</a><a class="cart-link" href="#/cart" aria-label="ตะกร้าสินค้า">${i("ShoppingBag")}<span class="cart-label">ตะกร้า</span><b data-cart-count>${count()}</b></a><button class="icon-btn mobile-menu" data-action="menu" aria-label="เปิดเมนู" aria-controls="main-nav" aria-expanded="false">${i("Menu")}</button></div></div></header>${!db ? '<div class="demo-banner">ยังไม่ได้เชื่อมต่อฐานข้อมูล — ไม่สามารถเข้าสู่ระบบหรือสั่งซื้อได้</div>' : ""}`;
+  const managing = r.startsWith("/admin");
+  const account = session
+    ? `<a class="user-chip" href="/account.html" aria-label="บัญชี ${esc(profile?.username || session.user.email)}">${i("UserRound")}<span>@${esc(profile?.username || session.user.email)}</span></a><button type="button" class="logout-btn" data-action="logout">${i("LogOut")}<span>ออกจากระบบ</span></button>`
+    : `<a class="btn secondary login-link" href="/login.html">${i("UserRound")} เข้าสู่ระบบ</a>`;
+  return `<a class="skip-link" href="#main-content">ข้ามไปเนื้อหาหลัก</a><header class="${managing ? "admin-header" : ""}"><div class="header-inner">${brand()}${managing ? '<span class="workspace-tag">ระบบจัดการร้านค้า</span>' : `<nav id="main-nav" aria-label="เมนูหลัก"><a class="${r === "/" ? "active" : ""}" href="/index.html">หน้าหลัก</a><a class="${r === "/shop" ? "active" : ""}" href="/shop.html">สินค้า</a><a class="${r === "/collections" ? "active" : ""}" href="/categories.html">หมวดหมู่</a><a class="${r === "/orders" ? "active" : ""}" href="/orders.html">คำสั่งซื้อ</a></nav>`}<div class="header-actions">${!managing ? `<a class="cart-link" href="/cart.html" aria-label="ตะกร้าสินค้า">${i("ShoppingBag")}<b data-cart-count>${count()}</b></a>` : ""}<div class="session-controls">${account}</div>${!managing ? `<button class="icon-btn mobile-menu" data-action="menu" aria-label="เปิดเมนู" aria-controls="main-nav" aria-expanded="false">${i("Menu")}</button>` : ""}</div></div></header>${!db ? '<div class="demo-banner">ยังไม่ได้เชื่อมต่อฐานข้อมูล — ไม่สามารถเข้าสู่ระบบหรือสั่งซื้อได้</div>' : ""}`;
 }
 function footer() {
-  return `<footer><div class="footer-main"><div><a class="brand" href="#/"><span class="brand-mark">${i("ShoppingBag")}</span>ZenMarket</a><p>ร้านค้าออนไลน์ ดูแลโดยเจ้าของร้านโดยตรง</p></div><div><h4>เมนูร้านค้า</h4><a href="#/shop">สินค้าทั้งหมด</a><a href="#/collections">หมวดหมู่สินค้า</a><a href="#/about">เกี่ยวกับร้าน</a></div><div><h4>ข้อมูลสำหรับลูกค้า</h4><a href="#/orders">คำสั่งซื้อของฉัน</a><a href="#/help">การจัดส่งและชำระเงิน</a><a href="#/privacy">ความเป็นส่วนตัว</a></div></div><div class="footer-bottom"><span>© ${new Date().getFullYear()} ZenMarket</span><a href="#/admin">จัดการร้านค้า ${i("ArrowUpRight")}</a></div></footer>`;
+  if (route().startsWith("/admin"))
+    return `<footer class="workspace-footer"><span>${esc(store.shop_name)} · สำหรับเจ้าของร้าน</span><a href="/index.html">กลับหน้าร้าน ${i("ArrowUpRight")}</a></footer>`;
+  return `<footer><div class="footer-main"><div>${brand()}<p>${esc(store.tagline)}</p></div><div><h4>ร้านค้า</h4><a href="/shop.html">สินค้าทั้งหมด</a><a href="/categories.html">หมวดหมู่สินค้า</a><a href="/about.html">เกี่ยวกับร้าน</a></div><div><h4>ช่วยเหลือ</h4><a href="/orders.html">คำสั่งซื้อของฉัน</a><a href="/help.html">จัดส่งและชำระเงิน</a><a href="/privacy.html">ความเป็นส่วนตัว</a>${store.contact_email ? `<span class="footer-contact">${esc(store.contact_email)}</span>` : ""}${store.contact_phone ? `<span class="footer-contact">${esc(store.contact_phone)}</span>` : ""}</div></div><div class="footer-bottom"><span>© ${new Date().getFullYear()} ${esc(store.shop_name)}</span><a href="/admin/products.html">จัดการร้านค้า ${i("ArrowUpRight")}</a></div></footer>`;
 }
 const empty = (title, text, link = "/shop", label = "เลือกชมสินค้า") =>
   `<div class="empty">${i("ShoppingBag")}<h2>${title}</h2><p>${text}</p><a class="btn primary" href="#${link}">${label} ${i("ArrowRight")}</a></div>`;
 function pageHead(eyebrow, title, description = "") {
   return `<div class="page-head"><span class="eyebrow">${eyebrow}</span><h1>${title}</h1>${description ? `<p>${description}</p>` : ""}</div>`;
 }
-function productCard(p, index) {
-  const liked = favorites.includes(p.id);
-  return `<article class="product-card"><div class="product-art"><a href="#/product/${p.id}" aria-label="ดู ${esc(p.name)}"><img src="${safeImage(p.image_url)}" alt="${esc(p.name)}" loading="lazy" width="600" height="600"></a><button class="wish ${liked ? "liked" : ""}" data-action="favorite" data-id="${p.id}" aria-label="${liked ? "นำออกจาก" : "เพิ่มใน"}รายการโปรด" aria-pressed="${liked}">${i("Heart")}</button>${!p.stock ? '<span class="sold-out">สินค้าหมดชั่วคราว</span>' : ""}</div><div class="product-info"><span class="product-category">${esc(p.category)}</span><a class="product-name" href="#/product/${p.id}">${esc(p.name)}</a><div class="product-bottom"><strong>${money(p.price)}</strong><button class="add-btn" data-action="add" data-id="${p.id}" aria-label="เพิ่ม ${esc(p.name)} ลงตะกร้า" ${!p.stock ? "disabled" : ""}>${i("Plus")}</button></div></div></article>`;
+function productCard(...args) {
+  return createStorePages(pageContext()).productCard(...args);
 }
-function filters() {
-  return `<div class="catalog-tools"><div class="category-pills" role="group" aria-label="หมวดหมู่สินค้า">${categories.map((c) => `<button class="pill ${category === c.name ? "selected" : ""}" data-action="category" data-category="${c.name}">${i(c.icon)}${c.name}</button>`).join("")}</div><label class="sort-label">เรียงตาม <select id="sort" aria-label="เรียงลำดับสินค้า"><option value="recommended" ${sort === "recommended" ? "selected" : ""}>แนะนำสำหรับคุณ</option><option value="low" ${sort === "low" ? "selected" : ""}>ราคา: ต่ำไปสูง</option><option value="high" ${sort === "high" ? "selected" : ""}>ราคา: สูงไปต่ำ</option><option value="new" ${sort === "new" ? "selected" : ""}>ใหม่ล่าสุด</option></select></label></div>`;
+function filters(...args) {
+  return createStorePages(pageContext()).filters(...args);
 }
-function catalogList(limit) {
-  const available = products.filter((p) => p.active);
-  let list = available.filter(
-    (p) =>
-      (category === "ทั้งหมด" || p.category === category) &&
-      `${p.name} ${p.category} ${p.sku}`
-        .toLowerCase()
-        .includes(search.toLowerCase()),
-  );
-  if (sort === "low") list.sort((a, b) => a.price - b.price);
-  if (sort === "high") list.sort((a, b) => b.price - a.price);
-  if (sort === "new")
-    list.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-  if (limit) list = list.slice(0, limit);
-  if (list.length)
-    return `<div class="product-grid">${list.map(productCard).join("")}</div>`;
-  if (!available.length)
-    return `<div class="empty catalog-empty">${i("Package")}<h2>ยังไม่มีสินค้าในร้าน</h2><p>ร้านกำลังเตรียมสินค้า เมื่อเจ้าของร้านเพิ่มสินค้าแล้วจะแสดงที่นี่</p>${admin ? `<button class="btn primary" data-action="edit-product">${i("Plus")} เพิ่มสินค้าชิ้นแรก</button>` : `<a class="btn secondary" href="#/about">เกี่ยวกับร้าน</a>`}</div>`;
-  return `<div class="empty">${i("Search")}<h2>ไม่พบสินค้าที่ค้นหา</h2><p>ลองเปลี่ยนคำค้นหา หรือเลือกดูสินค้าทั้งหมด</p><button class="btn secondary" data-action="reset-filters">ล้างตัวกรอง</button></div>`;
+function catalogList(...args) {
+  return createStorePages(pageContext()).catalogList(...args);
 }
-function home() {
-  const total = products.filter((p) => p.active).length;
-  return `<main id="main-content" class="wrap home-page"><section class="welcome"><div><span class="eyebrow">ZENMARKET</span><h1>ยินดีต้อนรับสู่ร้านของเรา</h1><p>เลือกสินค้า ใส่ตะกร้า และชำระเงินผ่าน PromptPay<br>ดูแลทุกคำสั่งซื้อโดยเจ้าของร้านโดยตรง</p><div class="button-row"><a class="btn primary" href="#/shop">ดูสินค้าทั้งหมด ${i("ArrowRight")}</a><a class="btn secondary" href="#/orders">ติดตามคำสั่งซื้อ</a></div></div><aside class="shop-info"><h2>ช้อปง่ายใน 3 ขั้นตอน</h2><ol><li><span>1</span>เลือกสินค้าและใส่ตะกร้า</li><li><span>2</span>กรอกที่อยู่และชำระผ่าน QR</li><li><span>3</span>แนบสลิปและรอร้านตรวจสอบ</li></ol><p>${i("Truck")} ส่งฟรีเมื่อซื้อครบ 1,000 บาท</p></aside></section><section class="catalog-section" id="picks"><div class="section-heading"><div><h2>สินค้าในร้าน <span class="count-label">${total} รายการ</span></h2><p>สินค้าที่เจ้าของร้านเพิ่มและเปิดขาย</p></div><a class="text-link" href="#/shop">ดูทั้งหมด ${i("ArrowRight")}</a></div>${filters()}<div id="catalog-list">${catalogList(8)}</div></section></main>`;
+function home(...args) {
+  return createStorePages(pageContext()).home(...args);
 }
-function shop() {
-  return `<main class="wrap subpage">${pageHead("SHOP", "สินค้าทั้งหมด", `${products.filter((p) => p.active).length} รายการในร้าน`)}<form id="search-form" class="search-box">${i("Search")}<label class="sr-only" for="product-search">ค้นหาชื่อสินค้าหรือรหัสสินค้า</label><input id="product-search" name="search" placeholder="ค้นหาชื่อสินค้า หรือรหัสสินค้า" value="${esc(search)}" maxlength="100"><button class="btn primary" type="submit">ค้นหา</button></form>${filters()}<div id="catalog-list">${catalogList()}</div></main>`;
+function shop(...args) {
+  return createStorePages(pageContext()).shop(...args);
 }
-function collections() {
-  return `<main class="wrap subpage">${pageHead("CATEGORIES", "หมวดหมู่สินค้า", "เลือกดูสินค้าตามหมวดหมู่ที่คุณสนใจ")}<div class="collection-grid">${categories
-    .slice(1)
-    .map(
-      (c) =>
-        `<button class="collection-card" data-action="collection" data-category="${c.name}">${i(c.icon)}<span><strong>${c.name}</strong><small>${products.filter((p) => p.active && p.category === c.name).length} รายการ</small></span>${i("ChevronRight")}</button>`,
-    )
-    .join("")}</div></main>`;
+function collections(...args) {
+  return createStorePages(pageContext()).collections(...args);
 }
-function productPage(id) {
-  const p = products.find((p) => p.id === id && p.active);
-  if (!p) return empty("ไม่พบสินค้า", "สินค้านี้อาจถูกนำออกจากร้านแล้ว");
-  return `<main class="wrap subpage"><a class="back-link" href="#/shop">${i("ArrowLeft")} กลับไปเลือกสินค้า</a><div class="product-detail"><div class="detail-art tone-0"><img src="${safeImage(p.image_url)}" alt="${esc(p.name)}"></div><div class="detail-info"><span class="eyebrow">${esc(p.category)}</span><h1>${esc(p.name)}</h1><span class="muted">รหัสสินค้า ${esc(p.sku)}</span><h2 class="detail-price">${money(p.price)}</h2><p>${esc(p.description)}</p><div class="stock">${i(p.stock ? "CheckCircle2" : "Package")} ${p.stock ? `พร้อมส่ง ${p.stock} ชิ้น` : "สินค้าหมดชั่วคราว"}</div><button class="btn primary full" data-action="add" data-id="${p.id}" ${!p.stock ? "disabled" : ""}>${i("ShoppingBag")} เพิ่มลงตะกร้า</button><button class="btn secondary full" data-action="favorite" data-id="${p.id}">${i("Heart")} ${favorites.includes(id) ? "บันทึกในรายการโปรดแล้ว" : "เก็บไว้ในรายการโปรด"}</button><div class="detail-assurances">${i("Truck")} จัดส่ง 2–5 วันทำการ หลังตรวจสอบการชำระเงิน<br>${i("ShieldCheck")} ชำระผ่าน QR PromptPay และแนบสลิป</div></div></div></main>`;
+function productPage(...args) {
+  return createStorePages(pageContext()).productPage(...args);
 }
-function cartRows() {
-  return cart
-    .map((row) => {
-      const p = products.find((x) => x.id === row.id);
-      return p
-        ? `<div class="cart-row"><a href="#/product/${p.id}"><img src="${safeImage(p.image_url)}" alt="${esc(p.name)}"></a><div class="cart-item-info"><small>${esc(p.category)}</small><a href="#/product/${p.id}">${esc(p.name)}</a><span>${money(p.price)}</span></div><div class="stepper"><button data-action="quantity" data-id="${p.id}" data-delta="-1" aria-label="ลดจำนวน">${i("Minus")}</button><span>${row.quantity}</span><button data-action="quantity" data-id="${p.id}" data-delta="1" aria-label="เพิ่มจำนวน">${i("Plus")}</button></div><strong>${money(p.price * row.quantity)}</strong><button class="icon-btn" data-action="remove" data-id="${p.id}" aria-label="ลบ ${esc(p.name)}">${i("Trash2")}</button></div>`
-        : `<div class="notice">ไม่พบสินค้าในตะกร้า <button class="btn secondary" data-action="remove" data-id="${row.id}">นำออก</button></div>`;
-    })
-    .join("");
+function cartRows(...args) {
+  return createCheckoutPages(pageContext()).cartRows(...args);
 }
-function totals() {
-  const subtotal = cart.reduce(
-    (sum, row) =>
-      sum + (products.find((p) => p.id === row.id)?.price || 0) * row.quantity,
-    0,
-  );
-  return {
-    subtotal,
-    shipping: subtotal >= 1000 ? 0 : 50,
-    total: subtotal + (subtotal >= 1000 ? 0 : 50),
-  };
+function totals(...args) {
+  return createCheckoutPages(pageContext()).totals(...args);
 }
-function summary() {
-  const t = totals();
-  return `<h3>สรุปรายการสั่งซื้อ</h3><div class="summary-line"><span>ยอดสินค้า (${count()} ชิ้น)</span><strong>${money(t.subtotal)}</strong></div><div class="summary-line"><span>ค่าจัดส่ง</span><strong>${t.shipping ? money(t.shipping) : "ฟรี"}</strong></div>${t.shipping ? `<p class="shipping-tip">อีก ${money(1000 - t.subtotal)} ก็ส่งฟรีแล้ว ${i("Truck")}</p>` : `<p class="shipping-tip">ออเดอร์นี้รับสิทธิ์จัดส่งฟรี ${i("Check")}</p>`}<div class="summary-total"><span>ยอดรวม</span><strong>${money(t.total)}</strong></div>`;
+function summary(...args) {
+  return createCheckoutPages(pageContext()).summary(...args);
 }
-function cartPage() {
-  return `<main class="wrap subpage">${pageHead("YOUR GOOD FINDS", "ตะกร้าของคุณ", `${count()} ชิ้นที่เลือกมาเพื่อวันดีๆ`)}${cart.length ? `<div class="checkout-layout"><div class="cart-items">${cartRows()}<a class="back-link" href="#/shop">${i("ArrowLeft")} เลือกซื้อสินค้าต่อ</a></div><aside class="summary-card">${summary()}<a href="#/checkout" class="btn primary full">ไปชำระเงิน ${i("ArrowRight")}</a><p class="secure-note">${i("ShieldCheck")} ชำระเงินผ่าน PromptPay อย่างปลอดภัย</p></aside></div>` : empty("ตะกร้ายังว่างอยู่", "ลองเลือกสิ่งเล็กๆ ที่ทำให้วันนี้พิเศษขึ้น")}</main>`;
+function cartPage(...args) {
+  return createCheckoutPages(pageContext()).cartPage(...args);
 }
 function field(label, name, type = "text", extra = "", value = "") {
   return `<label class="field"><span>${label}</span><input type="${type}" name="${name}" ${extra} value="${esc(value)}" required></label>`;
 }
-function authPage(register = false) {
-  return `<main class="auth-page wrap"><section class="auth-form"><a href="#/" class="back-link">${i("ArrowLeft")} กลับหน้าร้าน</a><h2>${register ? "มาเป็นส่วนหนึ่งของเรา" : "ยินดีต้อนรับกลับมา"}</h2><p>${register ? "สมัครสมาชิก แล้วเริ่มเลือกความสุขของคุณ" : "เข้าสู่ระบบเพื่อเลือกชิ้นโปรดและติดตามคำสั่งซื้อ"}</p><form id="${register ? "register" : "login"}-form">${register ? `<div class="form-grid">${field("ชื่อจริง", "first_name", "text", 'maxlength="80" autocomplete="given-name"')}${field("นามสกุล", "last_name", "text", 'maxlength="80" autocomplete="family-name"')}${field("ชื่อเล่น", "nickname", "text", 'maxlength="50"')}${field("อายุ (13 ปีขึ้นไป)", "age", "number", 'min="13" max="120"')}${field("เบอร์โทรศัพท์", "phone", "tel", 'pattern="0[0-9]{9}" placeholder="08xxxxxxxx" autocomplete="tel"')}${field("ชื่อผู้ใช้", "username", "text", 'pattern="[a-z0-9_]{3,30}" placeholder="ภาษาอังกฤษเล็ก ตัวเลข หรือ _" autocomplete="username"')}</div>${field("อีเมล", "email", "email", 'autocomplete="email" maxlength="254"')}${field("รหัสผ่าน", "password", "password", 'minlength="12" maxlength="128" autocomplete="new-password" placeholder="อย่างน้อย 12 ตัวอักษร ผสมตัวเลขและตัวอักษร"')}${field("ยืนยันรหัสผ่าน", "confirm", "password", 'minlength="12" maxlength="128" autocomplete="new-password"')}<label class="checkbox"><input type="checkbox" name="consent" required>ฉันอ่านและยอมรับ <a href="#/privacy" target="_blank" rel="noopener">นโยบายความเป็นส่วนตัว</a></label>` : `${field("ชื่อผู้ใช้ หรืออีเมล", "identifier", "text", 'autocomplete="username" maxlength="254" placeholder="ชื่อผู้ใช้ หรือ you@example.com"')}${field("รหัสผ่าน", "password", "password", 'autocomplete="current-password" maxlength="128"')}<div class="form-end"><button type="button" class="link-btn" data-action="forgot">ลืมรหัสผ่าน?</button></div>`}<p class="form-error" role="alert"></p><button class="btn primary full" type="submit">${register ? "สมัครสมาชิก" : "เข้าสู่ระบบ"} ${i("ArrowRight")}</button></form><p class="auth-switch">${register ? 'เป็นสมาชิกอยู่แล้ว? <a href="#/login">เข้าสู่ระบบ</a>' : 'ยังไม่มีบัญชี? <a href="#/register">สมัครสมาชิก</a>'}</p></section></main>`;
+function authPage(...args) {
+  return createAccountPages(pageContext()).authPage(...args);
 }
-function checkoutPage() {
-  if (!session)
-    return empty(
-      "เข้าสู่ระบบก่อนชำระเงิน",
-      "เพื่อบันทึกคำสั่งซื้อและติดตามสถานะของคุณ",
-      "/login",
-      "เข้าสู่ระบบ",
-    );
-  if (!cart.length) return cartPage();
-  return `<main class="wrap subpage">${pageHead("ONE STEP CLOSER TO YOUR JOY", "จัดส่งความสุขให้คุณ", "กรอกที่อยู่ แล้วชำระเงินด้วย QR PromptPay")}<div class="checkout-layout"><form id="checkout-form" class="panel"><h3>ข้อมูลจัดส่ง</h3>${field("ชื่อผู้รับ", "recipient", "text", 'minlength="2" maxlength="150" autocomplete="name"', profile ? profile.first_name + " " + profile.last_name : "")}${field("เบอร์โทรศัพท์", "phone", "tel", 'pattern="0[0-9]{9}" autocomplete="tel"', profile?.phone || "")}<label class="field"><span>ที่อยู่จัดส่ง (บ้านเลขที่ ถนน ตำบล อำเภอ จังหวัด และรหัสไปรษณีย์)</span><textarea name="address" required minlength="20" maxlength="1200" rows="4" autocomplete="street-address" placeholder="กรุณากรอกที่อยู่ครบถ้วนเพื่อการจัดส่ง"></textarea></label><div class="notice">${i("CreditCard")} ชำระผ่าน PromptPay หลังสร้างคำสั่งซื้อ กรุณาตรวจชื่อผู้รับเงินในแอปธนาคารทุกครั้ง</div><p class="form-error" role="alert"></p><button class="btn primary" type="submit">สร้างคำสั่งซื้อและรับ QR ${i("ArrowRight")}</button></form><aside class="summary-card">${summary()}<p class="muted">ยอดสุดท้ายและสต็อกจะตรวจสอบจากฐานข้อมูลอีกครั้ง</p></aside></div></main>`;
+function checkoutPage(...args) {
+  return createCheckoutPages(pageContext()).checkoutPage(...args);
 }
 const statusLabel = {
   pending: "รอชำระเงิน",
@@ -280,121 +308,23 @@ const date = (s) =>
     dateStyle: "medium",
     timeStyle: "short",
   });
-async function ordersPage() {
-  if (!session)
-    return empty(
-      "ดูคำสั่งซื้อของคุณ",
-      "กรุณาเข้าสู่ระบบเพื่อติดตามคำสั่งซื้อ",
-      "/login",
-      "เข้าสู่ระบบ",
-    );
-  const { data, error } = await db
-    .from("orders")
-    .select("*")
-    .eq("user_id", session.user.id)
-    .order("created_at", { ascending: false });
-  if (error) throw error;
-  return `<main class="wrap subpage">${pageHead("YOUR ORDERS", "คำสั่งซื้อของฉัน", "ติดตามทุกชิ้นโปรด ที่กำลังเดินทางไปหาคุณ")}${data.length ? `<div class="order-list">${data.map((o) => `<a class="order-card" href="#/order/${o.id}"><div><strong>#${o.id.slice(0, 8).toUpperCase()}</strong><small>${date(o.created_at)}</small></div><span>${o.items.length} รายการ</span><strong>${money(o.total)}</strong><span class="status ${o.status}">${statusLabel[o.status]}</span>${i("ChevronRight")}</a>`).join("")}</div>` : empty("ยังไม่มีคำสั่งซื้อ", "ชิ้นโปรดชิ้นแรก กำลังรอคุณอยู่")}</main>`;
+async function ordersPage(...args) {
+  return createCheckoutPages(pageContext()).ordersPage(...args);
 }
-async function orderPage(id) {
-  if (!session)
-    return empty(
-      "กรุณาเข้าสู่ระบบ",
-      "เพื่อดูรายละเอียดคำสั่งซื้อ",
-      "/login",
-      "เข้าสู่ระบบ",
-    );
-  const { data: o, error } = await db
-    .from("orders")
-    .select("*")
-    .eq("id", id)
-    .single();
-  if (error) throw Error("ไม่พบคำสั่งซื้อ หรือคุณไม่มีสิทธิ์เข้าถึง");
-  const qr =
-    o.status === "pending" || o.status === "review"
-      ? await QRCode.toDataURL(promptpayPayload(o.promptpay_id, o.total), {
-          width: 360,
-          margin: 2,
-          errorCorrectionLevel: "M",
-        })
-      : "";
-  let slip = "";
-  if (o.slip_path) {
-    const { data } = await db.storage
-      .from("payment-slips")
-      .createSignedUrl(o.slip_path, 120);
-    if (data)
-      slip = `<a class="btn secondary" href="${esc(data.signedUrl)}" target="_blank" rel="noopener">${i("Eye")} ดูสลิปที่แนบ</a>`;
-  }
-  return `<main class="wrap subpage"><a class="back-link" href="#${admin ? "/admin/orders" : "/orders"}">${i("ArrowLeft")} กลับรายการคำสั่งซื้อ</a>${pageHead("ORDER DETAILS", `คำสั่งซื้อ #${o.id.slice(0, 8).toUpperCase()}`, date(o.created_at))}<div class="checkout-layout"><section class="panel"><span class="status ${o.status}">${statusLabel[o.status]}</span><div class="order-products">${o.items.map((p) => `<div class="order-product"><img src="${safeImage(p.image_url)}" alt="${esc(p.name)}"><div><strong>${esc(p.name)}</strong><small>${esc(p.sku)} · ${p.quantity} ชิ้น</small></div><strong>${money(p.price * p.quantity)}</strong></div>`).join("")}</div><div class="summary-line"><span>สินค้า</span><strong>${money(o.subtotal)}</strong></div><div class="summary-line"><span>ค่าจัดส่ง</span><strong>${money(o.shipping)}</strong></div><div class="summary-total"><span>ยอดชำระ</span><strong>${money(o.total)}</strong></div><h3>ข้อมูลจัดส่ง</h3><p>${esc(o.recipient)} · ${esc(o.phone)}</p><p class="address">${esc(o.address)}</p>${o.tracking ? `<div class="notice">${i("Truck")} เลขติดตามพัสดุ: ${esc(o.tracking)}</div>` : ""}<div class="button-row">${slip}${o.status === "pending" || (admin && o.status === "review") ? `<button class="btn secondary" data-action="cancel-order" data-id="${o.id}">ยกเลิกและคืนสต็อก</button>` : ""}</div>${admin && o.status === "review" ? `<div class="notice">ตรวจสอบยอดเข้าบัญชีจริงก่อนอนุมัติ สลิปเพียงอย่างเดียวไม่ยืนยันการโอน</div><button class="btn primary" data-action="approve-order" data-id="${o.id}">${i("Check")} ตรวจยอดเงินจริงแล้ว อนุมัติชำระเงิน</button>` : ""}${admin && o.status === "paid" ? `<form id="ship-form" data-id="${o.id}">${field("เลขติดตามพัสดุ", "tracking", "text", 'maxlength="100"')}<button class="btn primary" type="submit">ยืนยันจัดส่ง</button></form>` : ""}</section><aside class="payment-card">${qr ? `<div class="promptpay-logo">Prompt<span>Pay</span></div><p>สแกนเพื่อชำระเงิน</p><img class="qr" src="${qr}" alt="QR PromptPay ยอด ${money(o.total)}"><h2>${money(o.total)}</h2><strong>${esc(o.recipient_name)}</strong><p class="muted">PromptPay ${esc(o.promptpay_id.replace(/.(?=.{4})/g, "•"))}</p><a class="btn secondary full" href="${qr}" download="zenmarket-${o.id.slice(0, 8)}.png">${i("Download")} บันทึก QR Code</a><div class="notice">ตรวจชื่อผู้รับเงินในแอปธนาคารให้ตรงกัน QR นี้ไม่ตรวจยอดอัตโนมัติ ห้ามชำระซ้ำหากโอนแล้ว</div>${o.user_id === session.user.id ? `<form id="slip-form" data-id="${o.id}"><label class="field"><span>${o.status === "review" ? "ส่งสลิปใหม่ (ถ้าจำเป็น)" : "แนบหลักฐานการชำระเงิน"}</span><input type="file" name="slip" accept="image/png,image/jpeg,image/webp" required></label><small>JPG, PNG หรือ WebP ขนาดไม่เกิน 5 MB</small><button class="btn primary full" type="submit">${i("Upload")} ส่งสลิปให้ร้านตรวจสอบ</button><p class="form-error" role="alert"></p></form>` : ""}` : `${i(o.status === "cancelled" ? "Package" : "CheckCircle2", "payment-success")}<h2>${statusLabel[o.status]}</h2><p>${o.status === "paid" ? "ร้านกำลังเตรียมจัดส่งความสุขให้คุณ" : o.status === "shipped" ? "ติดตามพัสดุได้จากเลขจัดส่งในหน้านี้" : "คำสั่งซื้อนี้ถูกยกเลิกและคืนสต็อกแล้ว"}</p>`}</aside></div></main>`;
+async function orderPage(...args) {
+  return createCheckoutPages(pageContext()).orderPage(...args);
 }
-function accountPage() {
-  if (!session) return authPage();
-  return `<main class="wrap subpage">${pageHead("MY LITTLE SPACE", `สวัสดี, ${esc(profile?.nickname || "คุณ")} ✳`, "พื้นที่เล็กๆ สำหรับทุกชิ้นโปรดของคุณ")}<div class="account-grid"><a class="panel account-tile" href="#/orders">${i("Package")}<h3>คำสั่งซื้อของฉัน</h3><p>ติดตามสถานะ แนบสลิป และดูเลขพัสดุ</p>${i("ArrowRight")}</a><a class="panel account-tile" href="#/favorites">${i("Heart")}<h3>รายการโปรด</h3><p>ชิ้นที่ถูกใจ เก็บไว้เลือกช้อปวันหลัง</p>${i("ArrowRight")}</a>${admin ? `<a class="panel account-tile" href="#/admin">${i("Settings")}<h3>จัดการร้านค้า</h3><p>สินค้า คำสั่งซื้อ และบัญชีรับเงิน</p>${i("ArrowRight")}</a>` : ""}</div><section class="panel account-profile"><h3>ข้อมูลสมาชิก</h3><p>${esc(profile?.first_name)} ${esc(profile?.last_name)}</p><p class="muted">@${esc(profile?.username)} · ${esc(session.user.email)}</p><button class="btn secondary" data-action="change-password">เปลี่ยนรหัสผ่าน</button> <button class="btn secondary" data-action="logout">${i("LogOut")} ออกจากระบบ</button></section></main>`;
+function accountPage(...args) {
+  return createAccountPages(pageContext()).accountPage(...args);
 }
-async function adminPage(tab = "products") {
-  if (!session)
-    return empty(
-      "พื้นที่สำหรับเจ้าของร้าน",
-      "กรุณาเข้าสู่ระบบด้วยบัญชีแอดมิน",
-      "/login",
-      "เข้าสู่ระบบ",
-    );
-  if (!admin)
-    return empty(
-      "พื้นที่นี้สำหรับแอดมินเท่านั้น",
-      "บัญชีลูกค้าสามารถเลือกซื้อสินค้าและจัดการคำสั่งซื้อของตัวเองได้",
-    );
-  let content = "";
-  if (tab === "settings") {
-    const { data, error } = await db
-      .from("store_settings")
-      .select("*")
-      .single();
-    if (error) throw error;
-    content = `<section class="panel"><h2>บัญชีรับเงิน PromptPay</h2><p class="muted">ข้อมูลนี้จะใช้สร้าง QR ของคำสั่งซื้อใหม่เท่านั้น</p><form id="settings-form">${field("ชื่อผู้รับเงิน (ให้ตรงกับบัญชีธนาคาร)", "recipient_name", "text", 'minlength="2" maxlength="150"', data.recipient_name)}${field("เบอร์โทรศัพท์ หรือเลขบัตรประชาชนที่ผูก PromptPay", "promptpay_id", "text", 'inputmode="numeric" pattern="(0[0-9]{9}|[0-9]{13})"', data.promptpay_id || "")}<div class="notice">ตั้งค่าบัญชีของคุณจริงก่อนเปิดรับคำสั่งซื้อ ไม่ควรใช้เลขตัวอย่างทดสอบรับเงิน</div><p class="form-error" role="alert"></p><button class="btn primary" type="submit">${i("Check")} บันทึกบัญชีรับเงิน</button></form></section>`;
-  } else if (tab === "orders") {
-    const { data, error } = await db
-      .from("orders")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(100);
-    if (error) throw error;
-    content = `<section class="panel"><h2>คำสั่งซื้อล่าสุด (${data.length})</h2><p class="muted">แสดงล่าสุด 100 รายการ · ตรวจยอดเข้าบัญชีก่อนอนุมัติทุกครั้ง</p>${data.length ? `<div class="table-scroll"><table><thead><tr><th>คำสั่งซื้อ</th><th>ผู้รับ</th><th>ยอดรวม</th><th>สถานะ</th><th></th></tr></thead><tbody>${data.map((o) => `<tr><td>#${o.id.slice(0, 8).toUpperCase()}<small>${date(o.created_at)}</small></td><td>${esc(o.recipient)}</td><td>${money(o.total)}</td><td><span class="status ${o.status}">${statusLabel[o.status]}</span></td><td><a class="btn secondary small" href="#/order/${o.id}">ตรวจสอบ ${i("ArrowRight")}</a></td></tr>`).join("")}</tbody></table></div>` : "<p>ยังไม่มีคำสั่งซื้อ</p>"}</section>`;
-  } else {
-    content = `<section class="panel"><div class="section-heading"><div><h2>คลังสินค้า (${products.length})</h2><p>จัดการสินค้า ราคา และจำนวนในสต็อก</p></div><button class="btn primary" data-action="edit-product">${i("Plus")} เพิ่มสินค้า</button></div><div class="table-scroll"><table><thead><tr><th>สินค้า</th><th>หมวดหมู่</th><th>ราคา</th><th>คงเหลือ</th><th>สถานะ</th><th></th></tr></thead><tbody>${!products.length ? '<tr><td colspan="6" class="table-empty">ยังไม่มีสินค้า กด “เพิ่มสินค้า” เพื่อเริ่มต้น</td></tr>' : ""}${products.map((p) => `<tr><td><div class="table-product"><img src="${safeImage(p.image_url)}" alt=""><div><strong>${esc(p.name)}</strong><small>${esc(p.sku)}</small></div></div></td><td>${esc(p.category)}</td><td>${money(p.price)}</td><td>${p.stock}</td><td>${p.active ? "เปิดขาย" : "ซ่อน"}</td><td><button class="icon-btn" data-action="edit-product" data-id="${p.id}" aria-label="แก้ไข ${esc(p.name)}">${i("Pencil")}</button></td></tr>`).join("")}</tbody></table></div></section>`;
-  }
-  return `<main class="wrap subpage">${pageHead("STORE STUDIO", "ดูแลร้านของคุณ", "พื้นที่หลังบ้านสำหรับเจ้าของร้านเพียงคนเดียว")}<div class="admin-nav"><a class="${tab === "products" ? "selected" : ""}" href="#/admin/products">${i("Package")} สินค้า</a><a class="${tab === "orders" ? "selected" : ""}" href="#/admin/orders">${i("ClipboardList")} คำสั่งซื้อ</a><a class="${tab === "settings" ? "selected" : ""}" href="#/admin/settings">${i("Settings")} ตั้งค่ารับเงิน</a></div>${content}</main>`;
+async function adminPage(...args) {
+  return createAdminPages(pageContext()).adminPage(...args);
 }
-function infoPage(type) {
-  const pages = {
-    about: [
-      "OUR LITTLE STORY",
-      "เกี่ยวกับร้าน ZenMarket",
-      "ร้านค้าออนไลน์ ดูแลโดยเจ้าของร้านโดยตรง",
-      "เราเป็นร้านค้าที่ดูแลโดยเจ้าของร้านเพียงคนเดียว สินค้าทุกชิ้นมาจากการเลือกอย่างใส่ใจ ไม่มีผู้ขายภายนอกมาลงขายในร้านของเรา",
-      "เราเชื่อในของที่ใช้ได้จริง ดีไซน์ที่อยู่ได้นาน และรายละเอียดเล็กๆ ที่สร้างรอยยิ้มให้คุณ ขอบคุณที่ให้เราเป็นส่วนหนึ่งในวันธรรมดาที่พิเศษของคุณ",
-    ],
-    help: [
-      "HERE TO HELP",
-      "เรื่องเล็กๆ ที่เราอยากบอก",
-      "การชำระเงินและการจัดส่ง",
-      "ค่าจัดส่ง 50 บาทต่อคำสั่งซื้อ และฟรีเมื่อยอดสินค้าครบ 1,000 บาท จัดส่งภายใน 2–5 วันทำการหลังตรวจสอบยอดเงินจริง",
-      "ชำระผ่าน QR PromptPay ตามยอดคำสั่งซื้อ บันทึก QR ไปใช้ในแอปธนาคารได้ กรุณาตรวจชื่อผู้รับเงินก่อนโอน แล้วแนบสลิปในหน้าคำสั่งซื้อ ร้านจะตรวจสอบก่อนเปลี่ยนสถานะเป็นชำระเงินแล้ว สลิปและ QR ไม่ใช่การยืนยันยอดอัตโนมัติ หากยังไม่โอนสามารถยกเลิกรายการเพื่อคืนสต็อกได้ หากโอนแล้วกรุณาอย่ายกเลิกหรือโอนซ้ำ สำหรับการคืนสินค้า/คืนเงิน กรุณาติดต่อเจ้าของร้านและแจ้งเลขคำสั่งซื้อ โดยต้องยืนยันเงื่อนไขการคืนสินค้ากับเจ้าของร้านก่อนเปิดขายจริง",
-    ],
-    privacy: [
-      "YOUR PRIVACY MATTERS",
-      "ข้อมูลของคุณ เราใส่ใจ",
-      "นโยบายความเป็นส่วนตัว",
-      "เราเก็บชื่อ นามสกุล ชื่อเล่น เบอร์โทร อายุ ชื่อผู้ใช้ และอีเมล เพื่อจัดการบัญชี ส่วนที่อยู่และหลักฐานชำระเงินใช้ดำเนินการสั่งซื้อและจัดส่ง รหัสผ่านจัดการโดย Supabase Auth ไม่เก็บเป็นข้อความธรรมดา",
-      "ข้อมูลถูกจัดเก็บบน Supabase และเว็บให้บริการผ่าน Vercel เจ้าของร้านเข้าถึงข้อมูลเท่าที่จำเป็นต่อการดำเนินการคำสั่งซื้อ สลิปอยู่ในพื้นที่ส่วนตัวและเปิดดูผ่านลิงก์ชั่วคราว ตะกร้า รายการโปรด และเซสชันเข้าสู่ระบบจัดเก็บในเบราว์เซอร์ คุณสามารถออกจากระบบและล้างข้อมูลเบราว์เซอร์ได้ หากต้องการเข้าถึง แก้ไข หรือลบข้อมูล ให้ติดต่อเจ้าของร้าน ก่อนเปิดขายจริงเจ้าของร้านต้องเพิ่มช่องทางติดต่อ ระยะเวลาเก็บรักษาข้อมูล และเงื่อนไขคืนสินค้าให้ชัดเจน",
-    ],
-  };
-  const [eye, title, intro, a, b] = pages[type] || pages.about;
-  return `<main class="wrap subpage info-page">${pageHead(eye, title, intro)}<div class="info-layout"><article class="panel prose"><p>${a}</p><p>${b}</p><a class="btn primary" href="#/shop">เลือกชิ้นที่ใช่ ${i("ArrowRight")}</a></article></div></main>`;
+function infoPage(...args) {
+  return createAccountPages(pageContext()).infoPage(...args);
 }
-function recoveryPage() {
-  return `<main class="wrap subpage narrow">${pageHead("A FRESH START", "ตั้งรหัสผ่านใหม่", "ใช้รหัสที่ไม่ซ้ำกับบัญชีอื่น อย่างน้อย 12 ตัวอักษร")}<form id="password-form" class="panel">${field("รหัสผ่านใหม่", "password", "password", 'minlength="12" maxlength="128" autocomplete="new-password"')}${field("ยืนยันรหัสผ่านใหม่", "confirm", "password", 'minlength="12" maxlength="128" autocomplete="new-password"')}<p class="form-error" role="alert"></p><button class="btn primary" type="submit">บันทึกรหัสผ่านใหม่</button></form></main>`;
+function recoveryPage(...args) {
+  return createAccountPages(pageContext()).recoveryPage(...args);
 }
 async function render() {
   const version = ++routeVersion;
@@ -439,16 +369,16 @@ async function render() {
     if (version !== routeVersion) return;
     if (!content.startsWith("<main")) content = "<main>" + content + "</main>";
     app.innerHTML = header() + content + footer();
-    createIcons({ icons });
+    preparePage();
     if (!$("main").id) $("main").id = "main-content";
-    document.title = `${r.startsWith("/admin") ? "จัดการร้านค้า" : r === "/cart" ? "ตะกร้าสินค้า" : "ร้านค้าออนไลน์"} | ZenMarket`;
+    document.title = `${$("main h1")?.textContent || "ร้านค้าออนไลน์"} | ${store.shop_name}`;
   } catch (e) {
     if (version !== routeVersion) return;
     app.innerHTML =
       header() +
       empty("ไม่สามารถโหลดข้อมูลได้", esc(e.message || "กรุณาลองอีกครั้ง")) +
       footer();
-    createIcons({ icons });
+    preparePage();
   }
 }
 async function refreshProducts() {
@@ -488,20 +418,25 @@ function modal(content) {
   dialog.innerHTML = `<button class="modal-close icon-btn" data-action="close-modal" aria-label="ปิด">${i("X")}</button>${content}`;
   document.body.append(dialog);
   dialog.showModal();
-  createIcons({ icons });
+  preparePage();
   dialog.addEventListener("click", (e) => {
     if (e.target === dialog) dialog.close();
   });
   dialog.addEventListener("close", () => dialog.remove());
 }
 function productModal(id) {
+  if (categories.length < 2) {
+    toast("กรุณาเพิ่มหมวดหมู่สินค้าก่อน", true);
+    go("/admin/categories");
+    return;
+  }
   const p = products.find((p) => p.id === id) || {};
   modal(
     `<h2>${id ? "แก้ไขสินค้า" : "เพิ่มสินค้าใหม่"}</h2><form id="product-form" data-id="${p.id || ""}">${field("ชื่อสินค้า", "name", "text", 'maxlength="150"', p.name || "")}<div class="form-grid">${field("รหัสสินค้า (SKU)", "sku", "text", 'maxlength="50"', p.sku || "")}<label class="field"><span>หมวดหมู่สินค้า</span><select name="category">${categories
       .slice(1)
       .map(
         (c) =>
-          `<option ${p.category === c.name ? "selected" : ""}>${c.name}</option>`,
+          `<option value="${esc(c.name)}" ${p.category === c.name ? "selected" : ""}>${esc(c.name)}</option>`,
       )
       .join(
         "",
@@ -540,11 +475,11 @@ document.addEventListener("click", async (e) => {
       $("#catalog-list").innerHTML = catalogList(
         route() === "/" ? 8 : undefined,
       );
-      createIcons({ icons });
+      preparePage();
     } else if (action === "collection") {
       category = button.dataset.category;
       search = "";
-      go("/shop");
+      go("/shop?category=" + encodeURIComponent(category));
     } else if (action === "remove" || action === "quantity") {
       const row = cart.find((x) => x.id === id);
       if (action === "remove") cart = cart.filter((x) => x.id !== id);
@@ -571,13 +506,68 @@ document.addEventListener("click", async (e) => {
       sort = "recommended";
       render();
     } else if (action === "logout") {
-      await db.auth.signOut();
-      session = null;
-      profile = null;
-      admin = false;
-      await refreshProducts();
-      go("/");
-      toast("ออกจากระบบแล้ว");
+      if (signingOut) return;
+      signingOut = true;
+      const buttons = [...document.querySelectorAll('[data-action="logout"]')];
+      buttons.forEach((b) => {
+        b.disabled = true;
+        b.setAttribute("aria-busy", "true");
+      });
+      try {
+        const { error } = await db.auth.signOut({ scope: "local" });
+        if (error) {
+          // Auth can clear this browser before remote revocation fails. Never
+          // leave a stale signed-in screen or claim that revocation succeeded.
+          const { data: current } = await db.auth.getSession();
+          if (current.session) throw error;
+          session = null;
+          profile = null;
+          admin = false;
+          routeVersion++;
+          location.replace("/login.html?loggedOut=local");
+          return;
+        }
+        session = null;
+        profile = null;
+        admin = false;
+        routeVersion++;
+        location.replace("/login.html?loggedOut=1");
+      } finally {
+        signingOut = false;
+        buttons.forEach((b) => {
+          b.disabled = false;
+          b.removeAttribute("aria-busy");
+        });
+      }
+    } else if (action === "rename-category") {
+      if (!admin) throw Error("ไม่มีสิทธิ์");
+      modal(
+        `<h2>เปลี่ยนชื่อหมวดหมู่</h2><form id="category-rename-form" data-name="${esc(button.dataset.name)}">${field("ชื่อหมวดหมู่ใหม่", "name", "text", 'maxlength="80"', button.dataset.name)}<p class="form-error" role="alert"></p><button type="submit" class="btn primary">บันทึกชื่อหมวดหมู่</button></form>`,
+      );
+    } else if (action === "delete-category") {
+      if (!admin) throw Error("ไม่มีสิทธิ์");
+      if (
+        !confirm(
+          "ลบหมวดหมู่ " +
+            button.dataset.name +
+            "? ลบได้เฉพาะหมวดหมู่ที่ไม่มีสินค้า",
+        )
+      )
+        return;
+      button.disabled = true;
+      const { error } = await db
+        .from("categories")
+        .delete()
+        .eq("name", button.dataset.name);
+      if (error)
+        throw Error(
+          error.code === "23503"
+            ? "หมวดหมู่นี้ยังมีสินค้า กรุณาย้ายสินค้าไปหมวดอื่นก่อน"
+            : error.message,
+        );
+      await refreshStore();
+      render();
+      toast("ลบหมวดหมู่แล้ว");
     } else if (action === "edit-product") {
       if (admin) productModal(id);
     } else if (action === "close-modal") button.closest("dialog").close();
@@ -614,7 +604,7 @@ document.addEventListener("change", (e) => {
   if (e.target.id === "sort") {
     sort = e.target.value;
     $("#catalog-list").innerHTML = catalogList(route() === "/" ? 8 : undefined);
-    createIcons({ icons });
+    preparePage();
   }
 });
 function checkPassword(data) {
@@ -651,7 +641,7 @@ document.addEventListener("submit", async (e) => {
     if (form.id === "search-form") {
       search = data.search.trim();
       $("#catalog-list").innerHTML = catalogList();
-      createIcons({ icons });
+      preparePage();
       return;
     }
     if (!db) throw Error("ยังไม่ได้ตั้งค่าการเชื่อมต่อ Supabase");
@@ -661,7 +651,7 @@ document.addEventListener("submit", async (e) => {
         email: data.email.trim(),
         password: data.password,
         options: {
-          emailRedirectTo: location.origin + "/#/account",
+          emailRedirectTo: location.origin + "/account.html",
           data: {
             first_name: data.first_name.trim(),
             last_name: data.last_name.trim(),
@@ -703,7 +693,7 @@ document.addEventListener("submit", async (e) => {
       session = result.session;
       await refreshIdentity();
       await refreshProducts();
-      go(admin ? "/admin" : "/account");
+      go(admin ? "/admin/products" : "/account");
       toast("ยินดีต้อนรับกลับมาครับ");
     } else if (form.id === "checkout-form") {
       if (!session) throw Error("กรุณาเข้าสู่ระบบ");
@@ -741,6 +731,55 @@ document.addEventListener("submit", async (e) => {
       if (attach) throw attach;
       render();
       toast("ส่งสลิปแล้ว ร้านจะตรวจสอบยอดเงินจริง");
+    } else if (form.id === "store-form") {
+      if (!admin) throw Error("ไม่มีสิทธิ์");
+      const record = {};
+      for (const key of [
+        "shop_name",
+        "tagline",
+        "contact_email",
+        "contact_phone",
+        "contact_address",
+        "about_text",
+        "shipping_note",
+      ])
+        record[key] = String(data[key] || "").trim();
+      record.shipping_fee = Number(data.shipping_fee);
+      record.free_shipping_threshold = Number(data.free_shipping_threshold);
+      if (!record.shop_name) throw Error("กรุณาระบุชื่อร้าน");
+      record.logo_url = data.remove_logo === "on" ? "" : store.logo_url;
+      if (data.logo?.size)
+        record.logo_url = await uploadImage("store-assets", data.logo);
+      const { error } = await db
+        .from("store_settings")
+        .update(record)
+        .eq("singleton", true);
+      if (error) throw error;
+      await refreshStore();
+      render();
+      toast("บันทึกการตั้งค่าร้านแล้ว");
+    } else if (["category-form", "category-rename-form"].includes(form.id)) {
+      if (!admin) throw Error("ไม่มีสิทธิ์");
+      const name = String(data.name || "").trim();
+      if (!name || name === "ทั้งหมด")
+        throw Error("กรุณาใช้ชื่อหมวดหมู่ที่ไม่ใช่ “ทั้งหมด”");
+      const query =
+        form.id === "category-form"
+          ? db.from("categories").insert({ name })
+          : db
+              .from("categories")
+              .update({ name })
+              .eq("name", form.dataset.name);
+      const { error } = await query;
+      if (error)
+        throw Error(
+          error.code === "23505" ? "มีหมวดหมู่ชื่อนี้แล้ว" : error.message,
+        );
+      form.closest("dialog")?.close();
+      await refreshStore();
+      await refreshProducts();
+      render();
+      toast("บันทึกหมวดหมู่แล้ว");
     } else if (form.id === "settings-form") {
       if (!admin) throw Error("ไม่มีสิทธิ์");
       if (!validPromptPay(data.promptpay_id))
@@ -803,7 +842,7 @@ document.addEventListener("submit", async (e) => {
       toast("บันทึกการจัดส่งแล้ว");
     } else if (form.id === "forgot-form") {
       const { error } = await db.auth.resetPasswordForEmail(data.email.trim(), {
-        redirectTo: location.origin + "/#/reset-password",
+        redirectTo: location.origin + "/reset-password.html",
       });
       if (error) throw error;
       form.closest("dialog").close();
@@ -824,14 +863,8 @@ document.addEventListener("submit", async (e) => {
   }
 });
 window.addEventListener("hashchange", () => {
-  if (route() === "/") {
-    search = "";
-    category = "ทั้งหมด";
-    sort = "recommended";
-  }
-  document.querySelector("dialog")?.close();
-  window.scrollTo(0, 0);
-  render();
+  const target = migrateLegacyLink();
+  if (target) location.replace(target);
 });
 async function init() {
   const recovering = location.hash.includes("type=recovery");
@@ -844,6 +877,8 @@ async function init() {
         if (event === "SIGNED_OUT") {
           profile = null;
           admin = false;
+          if (!signingOut && route() !== "/login")
+            setTimeout(() => location.replace("/login.html?loggedOut=1"), 0);
         }
         if (event === "TOKEN_REFRESHED")
           setTimeout(() => refreshIdentity().catch(handleError), 0);
@@ -852,10 +887,22 @@ async function init() {
       session = data.session;
       await refreshIdentity();
     }
+    await refreshStore();
     await refreshProducts();
     loading = false;
     if (recovering) go("/reset-password");
-    else render();
+    else {
+      render();
+      const logoutStatus = new URLSearchParams(location.search).get(
+        "loggedOut",
+      );
+      if (logoutStatus === "local")
+        toast(
+          "ออกจากระบบในเบราว์เซอร์นี้แล้ว แต่ยืนยันการยกเลิกเซสชันกับเซิร์ฟเวอร์ไม่สำเร็จ",
+          true,
+        );
+      else if (logoutStatus) toast("ออกจากระบบเรียบร้อยแล้ว");
+    }
   } catch (e) {
     app.innerHTML =
       header() +
@@ -866,7 +913,7 @@ async function init() {
         "ลองอีกครั้ง",
       ) +
       footer();
-    createIcons({ icons });
+    preparePage();
     handleError(e);
   }
 }
@@ -882,4 +929,4 @@ document.addEventListener("keydown", (e) => {
     }
   }
 });
-init();
+if (!legacyLink) init();

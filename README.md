@@ -1,16 +1,16 @@
 # ZenMarket
 
-ทดสอบเว็บ: https://zenmarket-blue.vercel.app · หลังบ้าน: https://zenmarket-blue.vercel.app/#/admin
+ทดสอบเว็บ: https://zenmarket-blue.vercel.app · หลังบ้าน: https://zenmarket-blue.vercel.app/admin/products.html
 
-เว็บใช้ดีไซน์เรียบง่าย โทนขาว–น้ำเงิน–เทา ร้านเริ่มต้นที่ **0 สินค้า** และจะแสดงเฉพาะสินค้าที่เจ้าของร้านเพิ่มเอง ยังต้องตั้ง PromptPay จริง, Custom SMTP และข้อมูลนโยบาย/ติดต่อก่อนเปิดขายจริง
+เว็บใช้ดีไซน์เรียบง่าย ธีมมืด (กรมท่า–เทาเข้ม) ร้านเริ่มต้นที่ **0 สินค้า** และจะแสดงเฉพาะสินค้าที่เจ้าของร้านเพิ่มเอง ยังต้องตรวจสอบบัญชี PromptPay, ตั้ง Custom SMTP และข้อมูลนโยบาย/ติดต่อก่อนเปิดขายจริง
 
 ร้านค้าเจ้าของคนเดียว ภาษาไทย — HTML + CSS + JavaScript (Vanilla / Vite), Supabase Auth/PostgreSQL/Storage/Edge Functions และ Vercel ไม่ใช้ React หรือระบบ marketplace
 
 ## ฟีเจอร์
 
-- หน้าร้าน responsive โทนขาว–น้ำเงิน–เทา ใช้ Prompt แบบ self-hosted ลดภาพ/ข้อความตกแต่ง และใช้ปุ่มกับเมนูที่ชัดเจน
+- หน้าร้าน responsive ธีมมืด (กรมท่า–เทาเข้ม) ใช้ Prompt แบบ self-hosted ลดภาพ/ข้อความตกแต่ง และใช้ปุ่มกับเมนูที่ชัดเจน
 - แค็ตตาล็อก ค้นหาชื่อ/รหัสสินค้า กรองหมวด เรียงราคา รายละเอียดสินค้า รายการโปรด
-- ตะกร้าเก็บในเบราว์เซอร์ ปรับจำนวน/ลบสินค้า ค่าจัดส่ง 50 บาท ฟรีเมื่อสินค้า ≥ 1,000 บาท
+- ตะกร้าเก็บในเบราว์เซอร์ ปรับจำนวน/ลบสินค้า ค่าจัดส่งและเกณฑ์จัดส่งฟรีตั้งค่าได้ (ค่าเริ่มต้น 50 บาท / 1,000 บาท)
 - สมัครชื่อจริง นามสกุล ชื่อเล่น เบอร์ อายุ 13–120 ปี username รหัสผ่าน ยืนยันรหัส และอีเมล
 - Login ด้วย username หรือ email, ยืนยันอีเมล, ขอรีเซ็ตรหัสผ่าน, เปลี่ยนรหัสผ่าน
 - Admin คนเดียว: เพิ่ม/แก้ไข/ซ่อนสินค้า, SKU ไม่ซ้ำ, หมวด, ราคา, รูปภาพอัปโหลด, สต็อก, บัญชี PromptPay
@@ -35,7 +35,7 @@ Dev server bind `0.0.0.0:5173` และอนุญาต Arena preview host `.
 
 สำหรับติดตั้งใหม่:
 
-1. สำหรับติดตั้งใหม่ รัน `supabase/migrations/001_store.sql` ใน SQL editor ฐานข้อมูลจะเริ่มต้นที่ **0 สินค้า**; `supabase/seed.sql` ตั้งใจเว้นว่าง สำหรับฐานเดิมรัน `002_remove_demo_products.sql` หนึ่งครั้งเพื่อลบเฉพาะสินค้าเดโมเดิม 8 รายการ โดยตรวจ ID + SKU + รูปเดิม ไม่ลบสินค้าที่เจ้าของเพิ่มเอง
+1. สำหรับติดตั้งใหม่ รัน `supabase/migrations/001_store.sql` ใน SQL editor ฐานข้อมูลจะเริ่มต้นที่ **0 สินค้า**; `supabase/seed.sql` ตั้งใจเว้นว่าง สำหรับฐานเดิมรัน `002_remove_demo_products.sql` หนึ่งครั้งเพื่อลบเฉพาะสินค้าเดโมเดิม 8 รายการ โดยตรวจ ID + SKU + รูปเดิม ไม่ลบสินค้าที่เจ้าของเพิ่มเอง จากนั้นรัน `003_store_customization.sql` เพื่อเพิ่มการตั้งค่าร้าน หมวดหมู่แบบปรับเอง โลโก้ และค่าจัดส่งฝั่งฐานข้อมูล (ติดตั้งใหม่ให้รัน 001 → 002 → 003 ตามลำดับ)
 2. Deploy `supabase/functions/username-login/index.ts` เป็น `username-login` โดย `verify_jwt = false` เนื่องจากใช้ก่อน login ตัว function จำกัดการลองด้วยฐานข้อมูล (ต่อ IP hash และชื่อผู้ใช้ 15 ครั้ง/15 นาที) ไม่ส่งอีเมลจาก username กลับ browser และคืนข้อผิดพลาดรวม
 3. Edge runtime ใช้ `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` ที่แพลตฟอร์มตั้งให้ **ห้าม** ใส่ service key ใน Vite env, browser หรือ Git
 4. เปิด email auth และ email confirmation, ปิด anonymous signup; ตั้ง Site URL และ Redirect URLs ตรง deployment ที่อนุญาต พร้อมเปิด refresh token rotation
@@ -57,8 +57,8 @@ on conflict(singleton) do update set user_id=excluded.user_id;
 | --- | --- |
 | ชื่อผู้ใช้ | `zenadmin` |
 | อีเมลบัญชีทดสอบ | `admin@zenmarket.example` |
-| หน้าเข้าสู่ระบบ | https://zenmarket-blue.vercel.app/#/login |
-| ระบบหลังบ้าน | https://zenmarket-blue.vercel.app/#/admin |
+| หน้าเข้าสู่ระบบ | https://zenmarket-blue.vercel.app/login.html |
+| ระบบหลังบ้าน | https://zenmarket-blue.vercel.app/admin/products.html |
 | รหัสผ่าน | ไม่เผยแพร่ใน GitHub; ใช้รหัสที่ส่งให้เจ้าของร้านเป็นการส่วนตัว |
 
 **Repository นี้เป็นสาธารณะ ห้ามเพิ่มรหัสผ่านที่ยังใช้งานได้, token, service key หรือ session ลง README/โค้ด/ประวัติ Git** บุคคลทั่วไปไม่ควรได้รับสิทธิ์จัดการร้านผ่านรหัสที่เปิดเผย
@@ -70,9 +70,19 @@ on conflict(singleton) do update set user_id=excluded.user_id;
 1. เข้าสู่ระบบด้วยแอดมิน → หลังบ้าน → สินค้า
 2. กด **เพิ่มสินค้า** แล้วระบุชื่อ รหัสสินค้า หมวดหมู่ ราคา จำนวน และอัปโหลดรูป
 3. เปิดตัวเลือก **เปิดขายสินค้า** แล้วบันทึก สินค้าจะแสดงในหน้าร้านทันที
-4. หากยังไม่เพิ่ม หน้าหลัก/รายการสินค้า/หมวดหมู่จะแสดง 0 รายการ ไม่มีรูปหรือสินค้าจำลอง และสินค้าเดิมที่ถูกลบจะถูกนำออกจากตะกร้าที่บันทึกในเบราว์เซอร์
+4. หากยังไม่เพิ่ม หน้ารายการสินค้าจะแสดง 0 รายการ ไม่มีรูปหรือสินค้าจำลอง และสินค้าเดิมที่ถูกลบจะถูกนำออกจากตะกร้าที่บันทึกในเบราว์เซอร์
 
 ข้อมูลสินค้าใน `tests/fixtures/products.js` ใช้เฉพาะ API จำลองในชุดทดสอบ ไม่ import จากหน้าร้าน ไม่ deploy เป็นสินค้า และไม่ insert ลงฐานข้อมูลจริง
+
+## ตั้งค่าร้านและหมวดหมู่ (เฉพาะเจ้าของร้าน)
+
+- `/admin/settings.html`: เปลี่ยนชื่อร้าน คำอธิบาย เกี่ยวกับร้าน โลโก้ PNG/JPG/WebP ≤5 MB (หรือนำออก) อีเมล/โทรศัพท์/ที่อยู่สาธารณะ ค่าจัดส่ง เกณฑ์ฟรี และข้อความแจ้งจัดส่ง ข้อมูลบันทึกใน Supabase และแสดงบนทุกหน้า
+- `/admin/categories.html`: เพิ่มหมวดเอง เปลี่ยนชื่อโดยสินค้าย้ายชื่อตามอัตโนมัติ ลบได้เฉพาะหมวดว่าง ย้ายสินค้าก่อนลบหมวดที่ใช้งาน ไม่มีสิทธิ์ให้สมาชิกขายหรือจัดการร้าน
+- `/admin/payments.html`: ตั้ง PromptPay/ชื่อผู้รับเงินแยกจากข้อมูลร้านสาธารณะ ลูกค้าเห็นบัญชีที่จำเป็นเฉพาะคำสั่งซื้อของตัวเอง
+- ค่าจัดส่งคำนวณจากฐานข้อมูลสำหรับคำสั่งซื้อใหม่เท่านั้น ไม่เปลี่ยนยอดของคำสั่งซื้อเดิม
+- เมื่อเข้าสู่ระบบ มี `@username` และปุ่มออกจากระบบบน header และหน้า account ปุ่มแสดงสถานะระหว่างทำงาน หากล้าง session ในเครื่องแล้วแต่ยกเลิกกับเซิร์ฟเวอร์ไม่สำเร็จ จะพาไปหน้าล็อกอินพร้อมคำเตือนอย่างชัดเจน ไม่ค้างชื่อผู้ใช้เดิมหรืออ้างว่าฝั่งเซิร์ฟเวอร์สำเร็จ ออกจาก session ของเบราว์เซอร์ปัจจุบัน ไม่ใช่อุปกรณ์อื่นทั้งหมด
+- หน้าแรกเป็นทางลัด หน้าเลือกสินค้า หน้าบัญชี และหลังบ้านมีโครงสร้างแยกกัน ไม่มีข้อความประกาศค่าจัดส่งด้านบน
+- เก็บสินค้าที่เจ้าของเพิ่มแล้วทั้งหมด ไม่เติมเดโมและไม่รีเซ็ตข้อมูลร้าน
 
 ## ชำระเงินจริง: สิ่งที่ต้องรู้
 
@@ -109,21 +119,22 @@ VITE_SUPABASE_URL=https://PROJECT.supabase.co
 VITE_SUPABASE_ANON_KEY=PUBLIC_PUBLISHABLE_OR_ANON_KEY
 ```
 
-มี `vercel.json` พร้อม security headers และ SPA fallback หน้าเว็บใช้ hash routing (`/#/shop`, `/#/admin`) จึงเปิดลิงก์ตรงได้ ไม่ต้องใช้ server state
+มี `vercel.json` พร้อม security headers และ **ไม่มี SPA fallback**: Vite สร้าง 21 HTML entries เช่น `/shop.html`, `/account.html`, `/admin/settings.html`; รายละเอียดสินค้า/คำสั่งซื้อใช้ `?id=UUID` รองรับเปิดตรง/รีเฟรช และย้าย bookmark เก่า `/#/...` ไป URL ใหม่โดยอัตโนมัติ ไม่ใช้ hash routing สำหรับหน้าใหม่
 
 ## ทดสอบ
 
 - `npm test`: QR เปรียบเทียบกับ `promptpay-qr`, CRC, amount/ID validation, HTML escaping, cart parsing และล้างสินค้าเดิมที่ถูกลบ/ซ่อนจากตะกร้า
 - `npm run build`: production bundle
-- `node tests/ui.mjs`: Playwright ผ่าน Chromium npm binary, mock Supabase API **ไม่ใช่การยืนยัน live auth/email/payment** ครอบคลุมร้านว่าง 0 สินค้า, แอดมินเพิ่มสินค้าชิ้นแรก, category/search/favorites/cart persistence, register mismatch, user/admin guard, checkout/QR/slip, admin products/settings/approve, เมนูคีย์บอร์ด และ responsive 13 ขนาด 320–1920px บน 14 routes รวม dialog
+- `npm run test:ui`: Chromium + mock Supabase API ครอบคลุม HTML แยกหน้า/ลิงก์เก่า, username และ logout สำเร็จ/ผิดพลาด, สิทธิ์สมาชิก/แอดมิน, ตั้งชื่อร้าน/โลโก้/ลบโลโก้, หมวดหมู่เพิ่ม/เปลี่ยนชื่อ/ห้ามลบหมวดที่มีสินค้า, ตะกร้า/สั่งซื้อ/QR/สลิป/อนุมัติ และ responsive 13 ขนาด 320–1920px; ไม่ใช่การยืนยัน live auth/email/payment
 - Chromium Linux ต้องมี NSPR/NSS ในระบบ หาก sandbox ไม่มี สามารถใช้ libraries ที่ bundled ใน `@sparticuz/chromium/bin/al2023.tar.br` (ใช้เฉพาะการทดสอบ ไม่ deploy binary)
-- `tests/security.sql`: รันใน SQL editor ของ test project เป็น postgres; สร้างสินค้าทดสอบเฉพาะใน transaction ตรวจ permissions/RLS/stock/idempotency/price tampering/cancellation และ rollback ทุกครั้ง ร้านจริงยังคงว่างหลังทดสอบ
+- `tests/security.sql`: รันใน SQL editor ของ test project เป็น postgres; สร้างสินค้าทดสอบเฉพาะใน transaction ตรวจ permissions/RLS/stock/idempotency/price tampering/cancellation และ rollback ทุกครั้ง ไม่เปลี่ยนข้อมูลร้านจริง
+- `tests/customization.sql`: ตรวจสิทธิ์ตั้งค่าร้าน/หมวดหมู่, การแยกข้อมูลสาธารณะจากบัญชีรับเงิน, FK/cascade และค่าจัดส่งใหม่ ด้วย transaction rollback
 
 ห้าม commit `.env`, browser session, credentials, screenshots หรือ build output ที่ไม่จำเป็น
 
 ## การรองรับอุปกรณ์
 
 - Layout ปรับตามขนาดจอ ไม่ผูกกับยี่ห้อ: มือถือ Android/iPhone, แท็บเล็ต และคอมพิวเตอร์ผ่าน browser มาตรฐานรุ่นปัจจุบัน
-- ทดสอบ Chromium emulation 320, 360, 375, 390, 430, 600, 768, 820, 844 (แนวนอน), 1024, 1280, 1440 และ 1920px ทั้งร้านว่าง/มีสินค้า, ตะกร้า/ชำระเงิน, ฟอร์มสมาชิก, บัญชี, หลังบ้าน/ตาราง และ dialog
+- ทดสอบ Chromium emulation 320, 360, 375, 390, 430, 600, 768, 820, 844 (แนวนอน), 1024, 1280, 1440 และ 1920px ในหน้าสินค้า, ตะกร้า/ชำระเงิน, ฟอร์มสมาชิก, บัญชี, หลังบ้าน/ตาราง และ dialog
 - ปรับ input เป็น 16px เพื่อไม่ให้ iOS ซูมตอนกรอก, เมนูมือถือมี aria-expanded/ปิดด้วย Escape, รองรับ keyboard focus/reduced motion, ตารางหลังบ้านเลื่อนได้ภายในกรอบโดยไม่ดันทั้งหน้า
 - การทดสอบนี้เป็น browser emulation ไม่ใช่การรับรองว่าได้ทดสอบเครื่องจริงทุกยี่ห้อหรือ Safari/Firefox ทุกเวอร์ชัน ควรตรวจบนอุปกรณ์จริงที่ใช้ก่อนเปิดขาย

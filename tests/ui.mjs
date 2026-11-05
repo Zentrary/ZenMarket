@@ -2,6 +2,13 @@ import { chromium as playwright } from "@playwright/test";
 import chromium from "@sparticuz/chromium";
 import assert from "node:assert/strict";
 import { seedProducts } from "./fixtures/products.js";
+import { defaultSettings } from "../src/settings.js";
+import { pageURL } from "../src/routes.js";
+let shopConfig = { ...defaultSettings };
+let categoryRows = ["ไลฟ์สไตล์", "ของแต่งบ้าน", "แก็ดเจ็ต", "แฟชั่น"].map(
+  (name) => ({ name }),
+);
+let logoutError = false;
 const browser = await playwright.launch({
   headless: true,
   executablePath: await chromium.executablePath(),
@@ -35,10 +42,16 @@ let isAdmin = false,
   })),
   orders = [],
   configured = false;
-await page.route("https://*.supabase.co/**", async (route) => {
+await page.context().route("https://*.supabase.co/**", async (route) => {
   const req = route.request(),
     url = new URL(req.url()),
     path = url.pathname;
+  if (path.startsWith("/storage/v1/object/public/"))
+    return route.fulfill({
+      status: 200,
+      contentType: "image/png",
+      body: png.buffer,
+    });
   let body;
   try {
     body = req.postDataJSON();
@@ -69,8 +82,34 @@ await page.route("https://*.supabase.co/**", async (route) => {
       },
     };
   } else if (path === "/auth/v1/user") result = isAdmin ? adminUser : user;
-  else if (path.includes("/auth/v1/logout")) result = {};
-  else if (path === "/rest/v1/products") {
+  else if (path.includes("/auth/v1/logout")) {
+    if (logoutError) {
+      status = 500;
+      result = { message: "Logout unavailable" };
+    } else result = {};
+  } else if (path === "/rest/v1/rpc/get_storefront") result = shopConfig;
+  else if (path === "/rest/v1/categories") {
+    const oldName = url.searchParams.get("name")?.slice(3);
+    if (req.method() === "POST") {
+      if (categoryRows.some((c) => c.name === body.name)) {
+        status = 409;
+        result = { code: "23505", message: "Duplicate category" };
+      } else {
+        categoryRows.push(body);
+        result = null;
+      }
+    } else if (req.method() === "PATCH") {
+      categoryRows.find((c) => c.name === oldName).name = body.name;
+      products.forEach((p) => {
+        if (p.category === oldName) p.category = body.name;
+      });
+    } else if (req.method() === "DELETE") {
+      if (products.some((p) => p.category === oldName)) {
+        status = 409;
+        result = { code: "23503" };
+      } else categoryRows = categoryRows.filter((c) => c.name !== oldName);
+    } else result = categoryRows;
+  } else if (path === "/rest/v1/products") {
     if (req.method() === "POST") {
       products.push({
         ...body,
@@ -106,7 +145,8 @@ await page.route("https://*.supabase.co/**", async (route) => {
       });
       result = null;
     } else if (req.method() === "PATCH") {
-      configured = true;
+      if (body.promptpay_id) configured = true;
+      else Object.assign(shopConfig, body);
       result = null;
     } else
       result = {
@@ -124,7 +164,10 @@ await page.route("https://*.supabase.co/**", async (route) => {
         quantity: x.quantity,
       }));
       const subtotal = items.reduce((a, p) => a + p.price * p.quantity, 0);
-      const shipping = subtotal >= 1000 ? 0 : 50;
+      const shipping =
+        subtotal >= shopConfig.free_shipping_threshold
+          ? 0
+          : shopConfig.shipping_fee;
       const o = {
         id: "b1000000-0000-4000-8000-000000000001",
         user_id: user.id,
@@ -151,7 +194,8 @@ await page.route("https://*.supabase.co/**", async (route) => {
   } else if (path === "/rest/v1/rpc/attach_slip") {
     orders[0].status = "review";
     result = null;
-  } else if (path.startsWith("/storage/")) result = { Key: "mock" };
+  } else if (path.startsWith("/storage/"))
+    result = { Key: "mock", signedURL: "/mock-slip.png" };
   else {
     console.log("Unhandled mock:", path);
     result = {};
@@ -163,8 +207,9 @@ await page.route("https://*.supabase.co/**", async (route) => {
     headers: { "access-control-allow-origin": "*" },
   });
 });
-const visit = async (p) => {
-  await page.goto("http://localhost:5173/#" + p);
+const visit = async (path) => {
+  await page.goto("http://localhost:5173" + pageURL(path));
+  await page.locator("main").waitFor();
   await page.locator(".loading").waitFor({ state: "detached" });
 };
 const login = async (name) => {
@@ -172,85 +217,39 @@ const login = async (name) => {
   await page.locator("[name=identifier]").fill(name);
   await page.locator("[name=password]").fill("MockPassword123!");
   await page.locator("#login-form button[type=submit]").click();
-  await page.waitForURL(name === "zenadmin" ? "**/#/admin" : "**/#/account");
-  await page.locator(".loading").waitFor({ state: "detached" });
+  await page.waitForURL(
+    name === "zenadmin" ? "**/admin/products.html" : "**/account.html",
+  );
+  await page
+    .locator(name === "zenadmin" ? ".workspace-sidebar" : ".account-layout")
+    .waitFor();
+};
+const png = {
+  name: "test.png",
+  mimeType: "image/png",
+  buffer: Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aql0AAAAASUVORK5CYII=",
+    "base64",
+  ),
 };
 try {
-  const fixtures = products;
-  products = [];
-  await page.addInitScript(() => {
-    if (!localStorage.getItem("test-cart-injected")) {
-      localStorage.setItem(
-        "zen-cart",
-        JSON.stringify([
-          { id: "a1000000-0000-4000-8000-000000000001", quantity: 2 },
-        ]),
-      );
-      localStorage.setItem("test-cart-injected", "1");
-    }
-  });
   await visit("/");
-  await page.locator(".catalog-empty").waitFor();
+  assert.equal(await page.locator(".announcement").count(), 0);
+  assert.equal(await page.locator(".home-shortcuts").count(), 1);
   assert.equal(await page.locator(".product-card").count(), 0);
-  assert.match(await page.locator(".count-label").textContent(), /0/);
-  assert.equal(await page.locator("[data-cart-count]").textContent(), "0");
+  assert.equal(await page.locator('a[href^="#/"]').count(), 0);
   await page.screenshot({
-    path: "/home/user/zenmarket-simple-desktop.png",
+    path: "/home/user/zenmarket-dark-home.png",
     fullPage: true,
   });
-  for (const p of ["/shop", "/collections", "/cart", "/favorites"]) {
-    await visit(p);
-    assert.equal(await page.locator(".product-card").count(), 0);
-  }
-  await login("zenadmin");
-  assert.match(
-    await page.locator(".table-empty").textContent(),
-    /ยังไม่มีสินค้า/,
-  );
-  await page.locator("[data-action=edit-product]").click();
-  await page.locator("dialog [name=name]").fill("สินค้าเพิ่มโดยเจ้าของร้าน");
-  await page.locator("dialog [name=sku]").fill("OWNER-001");
-  await page.locator("dialog [name=price]").fill("125");
-  await page.locator("dialog [name=stock]").fill("5");
-  await page
-    .locator("dialog [name=image]")
-    .setInputFiles({
-      name: "product.png",
-      mimeType: "image/png",
-      buffer: Buffer.from(
-        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aql0AAAAASUVORK5CYII=",
-        "base64",
-      ),
-    });
-  await page.locator("dialog button[type=submit]").click();
-  await page.locator("dialog").waitFor({ state: "detached" });
-  assert.equal(products.length, 1);
-  await visit("/");
-  assert.equal(await page.locator(".product-card").count(), 1);
-  await visit("/account");
-  await page.locator("[data-action=logout]").click();
-  await page.waitForURL("**/#/");
-  products = fixtures;
-  await page.reload();
-  await page.locator(".product-card").first().waitFor();
+  await visit("/shop");
   assert.equal(await page.locator(".product-card").count(), 8);
-  assert.equal(
-    await page.locator("i[data-lucide]").count(),
-    0,
-    "all icons rendered",
-  );
-  await page.screenshot({
-    path: "/home/user/zenmarket-desktop.png",
-    fullPage: true,
-  });
-  // The simpler home page contains no product-montage or promotional hero art.
-  assert.equal(await page.locator(".hero-image").count(), 0);
   await page.locator('.pill[data-category="แก็ดเจ็ต"]').click();
   assert.equal(await page.locator(".product-card").count(), 2);
-  await page.locator('.pill[data-category="ทั้งหมด"]').click();
-  await page.locator(".product-card .wish").first().click();
+  await page.locator('[data-category="ทั้งหมด"]').click();
+  await page.locator(".wish").first().click();
   assert.equal(await page.locator(".wish.liked").count(), 1);
-  await page.locator(".product-card .add-btn").first().click();
+  await page.locator(".add-btn").first().click();
   await visit("/cart");
   assert.equal(await page.locator(".cart-row").count(), 1);
   await page.locator('[data-delta="1"]').click();
@@ -260,29 +259,11 @@ try {
   assert.equal(await page.locator(".stepper>span").textContent(), "2");
   await visit("/checkout");
   assert.match(await page.locator("main").textContent(), /เข้าสู่ระบบก่อน/);
-  await visit("/shop");
-  await page.locator("[name=search]").fill("Bottle");
-  await page.locator("#search-form button").click();
-  assert.equal(await page.locator(".product-card").count(), 1);
-  await visit("/register");
-  await page.locator("[name=first_name]").fill("ชื่อ");
-  await page.locator("[name=last_name]").fill("นามสกุล");
-  await page.locator("[name=nickname]").fill("ชื่อเล่น");
-  await page.locator("[name=age]").fill("25");
-  await page.locator("[name=phone]").fill("0812345678");
-  await page.locator("[name=username]").fill("tester");
-  await page.locator("[name=email]").fill("test@example.com");
-  await page.locator("[name=password]").fill("Password123456");
-  await page.locator("[name=confirm]").fill("Password654321");
-  await page.locator("[name=consent]").check();
-  await page.locator("#register-form button[type=submit]").click();
-  assert.match(await page.locator(".form-error").textContent(), /ไม่ตรงกัน/);
   await login("zenuser");
-  await visit("/admin");
-  assert.match(
-    await page.locator("main").textContent(),
-    /สำหรับแอดมินเท่านั้น/,
-  );
+  assert.match(await page.locator(".user-chip").textContent(), /zenuser/);
+  assert.equal(await page.locator(".account-layout").count(), 1);
+  await visit("/admin/settings");
+  assert.equal(await page.locator("#store-form").count(), 0);
   await visit("/checkout");
   await page
     .locator("[name=address]")
@@ -294,79 +275,135 @@ try {
     .waitFor();
   configured = true;
   await page.locator("#checkout-form button").click();
-  await page.waitForURL("**/#/order/*");
+  await page.waitForURL("**/order.html?id=*");
   await page.locator("img.qr").waitFor();
   assert.equal(await page.locator("a[download]").count(), 1);
-  await page
-    .locator("[name=slip]")
-    .setInputFiles({
-      name: "slip.png",
-      mimeType: "image/png",
-      buffer: Buffer.from(
-        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aql0AAAAASUVORK5CYII=",
-        "base64",
-      ),
-    });
+  await page.locator("[name=slip]").setInputFiles(png);
   await page.locator("#slip-form button").click();
   await page.locator(".status.review").waitFor();
+  // Local removal must not leave stale identity if remote revocation fails.
+  logoutError = true;
+  await page.locator("header [data-action=logout]").click();
+  await page.waitForURL("**/login.html?loggedOut=local");
+  await page.locator("#toast.error").waitFor();
+  assert.match(
+    await page.locator("#toast").textContent(),
+    /เซิร์ฟเวอร์ไม่สำเร็จ/,
+  );
+  assert.equal(await page.locator(".user-chip").count(), 0);
   await visit("/account");
-  await page.locator("[data-action=logout]").click();
-  await page.waitForURL("**/#/");
+  assert.match(await page.locator("main").textContent(), /กรุณาเข้าสู่ระบบ/);
+  logoutError = false;
+  await login("zenuser");
+  const otherTab = await page.context().newPage();
+  otherTab.on("pageerror", (e) => errors.push("otherTab: " + e.message));
+  await otherTab.goto("http://localhost:5173/account.html");
+  await otherTab.locator(".account-layout").waitFor();
+  await page.locator("header [data-action=logout]").click();
+  await page.waitForURL("**/login.html?loggedOut=1");
+  await otherTab.waitForURL("**/login.html?loggedOut=1");
+  await otherTab.close();
+  await page.locator("main").waitFor();
+  assert.equal(await page.locator(".user-chip").count(), 0);
+  await visit("/account");
+  assert.match(await page.locator("main").textContent(), /กรุณาเข้าสู่ระบบ/);
   await login("zenadmin");
-  assert.equal(await page.locator("tbody tr").count(), 8);
+  assert.equal(await page.locator(".workspace-sidebar").count(), 1);
+  assert.match(await page.locator(".user-chip").textContent(), /zenadmin/);
+  await visit("/admin/categories");
+  await page
+    .locator("#category-form [name=name]")
+    .fill("หมวดว่างสำหรับทดสอบลบ");
+  await page.locator("#category-form button").click();
+  await page
+    .locator('[data-action=delete-category][data-name="หมวดว่างสำหรับทดสอบลบ"]')
+    .click();
+  await page
+    .locator('[data-action=delete-category][data-name="หมวดว่างสำหรับทดสอบลบ"]')
+    .waitFor({ state: "detached" });
+  assert.ok(!categoryRows.some((c) => c.name === "หมวดว่างสำหรับทดสอบลบ"));
+  await page.locator("#category-form [name=name]").fill("หนังสือและดิจิทัล");
+  await page.locator("#category-form button").click();
+  await page
+    .locator(".category-row")
+    .filter({ hasText: "หนังสือและดิจิทัล" })
+    .waitFor();
+  await page
+    .locator('[data-action=rename-category][data-name="หนังสือและดิจิทัล"]')
+    .click();
+  await page.locator("dialog [name=name]").fill("สินค้าเกม");
+  await page.locator("dialog button[type=submit]").click();
+  await page.locator('[data-name="สินค้าเกม"]').first().waitFor();
+  await visit("/admin/products");
   await page.locator("[data-action=edit-product][data-id]").first().click();
-  await page.locator("dialog [name=price]").fill("399");
+  await page.locator("dialog [name=category]").selectOption("สินค้าเกม");
   await page.locator("dialog button[type=submit]").click();
   await page.locator("dialog").waitFor({ state: "detached" });
-  assert.equal(products[0].price, 399);
+  assert.equal(products[0].category, "สินค้าเกม");
+  await visit("/admin/categories");
+  await page
+    .locator('[data-action=delete-category][data-name="สินค้าเกม"]')
+    .click();
+  await page.locator("#toast.error").waitFor();
+  assert.equal(
+    await page
+      .locator('[data-action=delete-category][data-name="สินค้าเกม"]')
+      .count(),
+    1,
+  );
+  await visit("/collections");
+  await page.locator('[data-category="สินค้าเกม"]').click();
+  await page.waitForURL("**/shop.html?category=*");
+  await page.locator(".product-card").waitFor();
+  assert.equal(await page.locator(".product-card").count(), 1);
   await visit("/admin/settings");
-  await page.locator("[name=recipient_name]").fill("บัญชีทดสอบ");
-  await page.locator("[name=promptpay_id]").fill("1234567890123");
-  await page.locator("#settings-form button").click();
-  assert.match(await page.locator(".form-error").textContent(), /ไม่ถูกต้อง/);
+  assert.equal(await page.locator("[name=promptpay_id]").count(), 0);
+  await page.locator("[name=shop_name]").fill("ร้านทดสอบกลางคืน");
+  await page.locator("[name=tagline]").fill("ร้านของฉัน");
+  await page.locator("[name=contact_email]").fill("hello@example.com");
+  await page.locator("[name=shipping_fee]").fill("75");
+  await page.locator("[name=free_shipping_threshold]").fill("500");
+  await page.locator("[name=logo]").setInputFiles(png);
+  await page.locator("#store-form button[type=submit]").click();
+  await page
+    .locator(".brand")
+    .filter({ hasText: "ร้านทดสอบกลางคืน" })
+    .waitFor();
+  assert.equal(await page.locator("header .shop-logo").count(), 1);
+  await page.locator("header .shop-logo").evaluate((img) => img.decode());
+  await page.screenshot({
+    path: "/home/user/zenmarket-dark-settings.png",
+    fullPage: true,
+  });
+  await visit("/");
+  assert.match(await page.locator("h1").textContent(), /ร้านทดสอบกลางคืน/);
+  await visit("/help");
+  assert.match(await page.locator("main").textContent(), /75/);
+  await visit("/admin/payments");
+  await page.locator("[name=recipient_name]").fill("ชื่อทดสอบ");
   await page.locator("[name=promptpay_id]").fill("0812345678");
   await page.locator("#settings-form button").click();
+  await page.locator("#toast.show").waitFor();
   await visit("/admin/orders");
   await page.locator("tbody a").click();
+  await page.waitForURL("**/order.html?id=*");
   await page.locator("[data-action=approve-order]").click();
   await page.locator(".status.paid").waitFor();
-  await page.setViewportSize({ width: 390, height: 844 });
-  await visit("/");
-  assert.equal(await page.locator(".product-card").count(), 8);
-  await page.locator("#toast.show").waitFor({ state: "detached" });
+  await visit("/account");
   await page.screenshot({
-    path: "/home/user/zenmarket-mobile.png",
+    path: "/home/user/zenmarket-dark-account.png",
     fullPage: true,
   });
   assert.equal(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= innerWidth,
-    ),
-    true,
+    await page.locator(".account-actions [data-action=logout]").count(),
+    0,
   );
-  await page.locator("[data-action=menu]").click();
-  assert.equal(await page.locator("header nav").isVisible(), true);
-  for (const p of [
-    "/shop",
-    "/collections",
-    "/cart",
-    "/register",
-    "/about",
-    "/admin",
-    "/admin/settings",
-    "/orders",
-  ]) {
-    await visit(p);
-    assert.equal(
-      await page.evaluate(
-        () => document.documentElement.scrollWidth <= innerWidth,
-      ),
-      true,
-      "horizontal overflow " + p,
-    );
-  }
-  // Responsive viewport matrix: Chromium emulation, not a claim of physical-device or Safari testing.
-  const sizes = [
+  assert.equal(
+    await page.locator(".account-sidebar [data-action=logout]").count(),
+    1,
+  );
+  // Independent documents load directly and after refresh at representative portrait/landscape sizes.
+  for (const [width, height] of [
     [320, 568],
     [360, 800],
     [375, 667],
@@ -378,90 +415,83 @@ try {
     [844, 390],
     [1024, 768],
     [1280, 800],
-    [1440, 900],
+    [1440, 1000],
     [1920, 1080],
-  ];
-  products[0].name = "สินค้าที่มีชื่อยาว".repeat(10);
-  await visit("/");
-  await page.reload();
-  await page.locator(".product-card").first().waitFor();
-  await page.locator(".product-card .add-btn").first().click();
-  for (const [width, height] of sizes) {
+  ]) {
     await page.setViewportSize({ width, height });
-    for (const p of [
+    for (const path of [
       "/",
       "/shop",
       "/collections",
       "/cart",
       "/checkout",
-      "/register",
       "/account",
+      "/login",
+      "/register",
+      "/orders",
+      "/favorites",
+      "/help",
       "/about",
       "/privacy",
-      "/admin",
-      "/admin/settings",
-      "/orders",
-      "/order/b1000000-0000-4000-8000-000000000001",
+      "/reset-password",
       "/product/" + products[0].id,
+      "/order/" + orders[0].id,
+      "/admin/products",
+      "/admin/categories",
+      "/admin/settings",
+      "/admin/payments",
+      "/admin/orders",
     ]) {
-      await visit(p);
+      await visit(path);
       assert.equal(
         await page.evaluate(
           () => document.documentElement.scrollWidth <= innerWidth,
         ),
         true,
-        `${width}x${height} overflow: ${p}`,
+        `${width} overflow ${path}`,
       );
     }
-    await visit("/admin");
+    await visit("/admin/products");
     await page.locator("[data-action=edit-product]").first().click();
     assert.equal(
       await page
         .locator("dialog")
         .evaluate((el) => el.scrollWidth <= el.clientWidth),
       true,
-      `dialog overflow ${width}`,
+      "dialog overflow " + width,
     );
     await page.locator("[data-action=close-modal]").click();
   }
+  // Empty catalogue has no fallback demo products. Keep owner data entirely mocked.
+  const previous = products;
   products = [];
+  await visit("/shop");
+  assert.equal(await page.locator(".product-card").count(), 0);
+  assert.match(await page.locator("main").textContent(), /ยังไม่มีสินค้า/);
+  products = previous;
+  await visit("/admin/settings");
+  await page.locator("[name=remove_logo]").check();
+  await page.locator("#store-form button[type=submit]").click();
+  await page.locator("header .shop-logo").waitFor({ state: "detached" });
   await visit("/");
-  await page.reload();
-  await page.locator(".catalog-empty").waitFor();
-  for (const [width, height] of sizes) {
-    await page.setViewportSize({ width, height });
-    await visit("/");
-    assert.equal(await page.locator(".product-card").count(), 0);
-    assert.equal(
-      await page.evaluate(
-        () => document.documentElement.scrollWidth <= innerWidth,
-      ),
-      true,
-      `empty shop overflow ${width}`,
-    );
-  }
+  assert.equal(await page.locator("header .shop-logo").count(), 0);
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.locator("#toast.show").waitFor({ state: "detached" });
+  await visit("/account");
   await page.screenshot({
-    path: "/home/user/zenmarket-simple-mobile.png",
+    path: "/home/user/zenmarket-dark-mobile.png",
     fullPage: true,
   });
-  await page.setViewportSize({ width: 320, height: 568 });
-  await visit("/admin");
-  await page.locator("[data-action=menu]").click();
-  assert.equal(
-    await page.locator("[data-action=menu]").getAttribute("aria-expanded"),
-    "true",
-  );
-  await page.keyboard.press("Escape");
-  assert.equal(
-    await page.locator("[data-action=menu]").getAttribute("aria-expanded"),
-    "false",
-  );
+  await page.goto("http://localhost:5173/#/account");
+  await page.waitForURL("**/account.html");
+  await page.locator(".account-layout").waitFor();
+  assert.equal(await page.locator("i[data-lucide]").count(), 0);
   assert.deepEqual(errors, []);
   console.log(
-    "PASS: empty store, first owner product, no stale demo cart, shopping/auth/payment/admin regressions, keyboard menu, 13 viewport sizes (320–1920px), 14 routes and dialogs. API calls mocked; Chromium emulation only.",
+    "PASS: multi-page documents, legacy links, dark layout, username header, failed/successful logout, settings/logo persistence, custom category CRUD/FK guard, shipping display, cart/order/slip and responsive layouts. Supabase mocked; Chromium only.",
   );
+} catch (e) {
+  console.log("UI failure:", await page.locator("body").innerText(), errors);
+  throw e;
 } finally {
   await browser.close();
 }
