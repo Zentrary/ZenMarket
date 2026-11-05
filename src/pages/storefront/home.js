@@ -16,15 +16,22 @@ export async function renderHome({ db, store, esc, date }) {
     <section class="home-intro" aria-labelledby="home-title">
       <h1 id="home-title">${esc(store.shop_name)}</h1>
       ${store.tagline ? `<p>${esc(store.tagline)}</p>` : ""}
-      <a class="btn secondary" href="/shop/index.html">ดูสินค้า</a>
     </section>
-    ${reviews.length ? `<section class="home-reviews" aria-labelledby="home-reviews-title">
+    ${
+      reviews.length
+        ? `<section class="home-reviews" aria-labelledby="home-reviews-title">
       <h2 id="home-reviews-title">รีวิวจากลูกค้า</h2>
-      <div class="home-review-list">${reviews.map((r) => `<article class="home-review">
+      <div class="home-review-list">${reviews
+        .map(
+          (r) => `<article class="home-review">
         <div class="home-review-meta"><strong>@${esc(r.reviewer_name)}</strong><span class="home-review-stars" aria-label="${r.rating} จาก 5 ดาว">${"★".repeat(r.rating)}<span>${"☆".repeat(5 - r.rating)}</span></span></div>
         ${r.comment ? `<p>${esc(r.comment)}</p>` : ""}
         <small>${esc(r.product_name)} · ${date(r.created_at)}</small>
-      </article>`).join("")}</div>
-    </section>` : ""}
+      </article>`,
+        )
+        .join("")}</div>
+    </section>`
+        : ""
+    }
   </main>`;
 }

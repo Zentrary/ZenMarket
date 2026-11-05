@@ -122,12 +122,11 @@ export function createCheckoutPages(context) {
         "/login",
         "เข้าสู่ระบบ",
       );
-    const { data: o, error } = await db
-      .from("orders")
-      .select("*")
-      .eq("id", id)
-      .single();
-    if (error) throw Error("ไม่พบคำสั่งซื้อ หรือคุณไม่มีสิทธิ์เข้าถึง");
+    let query = db.from("orders").select("*").eq("id", id);
+    if (!admin) query = query.eq("user_id", session.user.id);
+    const { data: o, error } = await query.single();
+    if (error || !o || (!admin && o.user_id !== session.user.id))
+      throw Error("ไม่พบคำสั่งซื้อ หรือคุณไม่มีสิทธิ์เข้าถึง");
     const own = o.user_id === session.user.id;
     const deadlinePassed =
       o.status === "pending" &&

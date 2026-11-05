@@ -10,6 +10,11 @@ import {
   reviewColumns,
 } from "./core/experience.js";
 import { needsMembership, safeReturnPath } from "./core/routes.js";
+import {
+  customerViewKey,
+  readCustomerView,
+  audienceRedirect,
+} from "./core/audience.js";
 import "@fontsource/prompt/thai-400.css";
 import "@fontsource/prompt/thai-500.css";
 import "@fontsource/prompt/thai-600.css";
@@ -145,6 +150,7 @@ let products = [],
   session = null,
   profile = null,
   admin = false,
+  customerView = false,
   cart = validateCart(read("zen-cart", [])),
   favorites = read("zen-favorites", []),
   category = new URLSearchParams(location.search).get("category") || "ทั้งหมด",
@@ -184,13 +190,32 @@ function addCart(id) {
   saveCart();
   toast("เพิ่มลงตะกร้าแล้ว ไปช้อปต่อได้เลย");
 }
+function clearCustomerView() {
+  customerView = false;
+  try {
+    sessionStorage.removeItem(customerViewKey);
+  } catch {
+    /* Storage may be disabled. */
+  }
+}
+function guardAudience() {
+  const target = audienceRedirect({
+    route: route(),
+    signedIn: !!session,
+    isOwner: admin,
+    customerView,
+  });
+  if (!target) return false;
+  location.replace(target);
+  return true;
+}
 function pageContext() {
   return {
-    products,
+    products: customerView ? products.filter((p) => p.active) : products,
     addresses,
     session,
     profile,
-    admin,
+    admin: admin && !customerView,
     db,
     cart,
     favorites,
@@ -263,17 +288,35 @@ async function uploadImage(bucket, file) {
   return db.storage.from(bucket).getPublicUrl(path).data.publicUrl;
 }
 function brand() {
-  return `<a href="/index.html" class="brand" aria-label="${esc(store.shop_name)} หน้าหลัก">${store.logo_url ? `<img class="shop-logo" src="${safeImage(store.logo_url)}" alt="">` : `<span class="brand-mark">${i("ShoppingBag")}</span>`}<span>${esc(store.shop_name)}</span></a>`;
+  const target =
+    admin && !customerView ? "/admin/dashboard.html" : "/index.html";
+  return `<a href="${target}" class="brand" aria-label="${esc(store.shop_name)} ${admin && !customerView ? "หลังบ้าน" : "หน้าหลัก"}">${store.logo_url ? `<img class="shop-logo" src="${safeImage(store.logo_url)}" alt="">` : `<span class="brand-mark">${i("ShoppingBag")}</span>`}<span>${esc(store.shop_name)}</span></a>`;
 }
 function header() {
   const r = route();
-  const managing = r.startsWith("/admin");
+  const managing = admin && !customerView;
+  const links = [
+    ["/", "/index.html", "หน้าหลัก"],
+    ...(session
+      ? [
+          ["/shop", "/shop/index.html", "สินค้า"],
+          ["/orders", "/account/orders.html", "คำสั่งซื้อ"],
+        ]
+      : []),
+    ["/contact", "/pages/contact.html", "ช่องทางการติดต่อ"],
+  ];
   const account = session
     ? `<a class="user-chip" href="/account/index.html" aria-label="บัญชี ${esc(profile?.username || session.user.email)}">${i("UserRound")}<span>@${esc(profile?.username || session.user.email)}</span></a><button type="button" class="logout-btn" data-action="logout">${i("LogOut")}<span>ออกจากระบบ</span></button>`
     : `<a class="btn secondary login-link" href="/auth/login.html">${i("UserRound")} เข้าสู่ระบบ</a>`;
-  return `<a class="skip-link" href="#main-content">ข้ามไปเนื้อหาหลัก</a><header class="${managing ? "admin-header" : ""}"><div class="header-inner">${brand()}${managing ? '<span class="workspace-tag">ระบบจัดการร้านค้า</span>' : `<nav id="main-nav" aria-label="เมนูหลัก"><a class="${r === "/" ? "active" : ""}" href="/index.html">หน้าหลัก</a><a class="${r === "/shop" ? "active" : ""}" href="/shop/index.html">สินค้า</a><a class="${r === "/orders" ? "active" : ""}" href="/account/orders.html">คำสั่งซื้อ</a><a class="${r === "/contact" ? "active" : ""}" href="/pages/contact.html">ช่องทางการติดต่อ</a></nav>`}<div class="header-actions">${!managing ? `<a class="cart-link" href="/shop/cart.html" aria-label="ตะกร้าสินค้า">${i("ShoppingBag")}<b data-cart-count>${count()}</b></a>` : ""}<div class="session-controls">${admin && !managing ? `<a href="/admin/dashboard.html" class="icon-btn dashboard-link" aria-label="แดชบอร์ดร้านค้า">${i("LayoutGrid")}</a>` : ""}${managing ? (session ? `${admin ? `<a class="notification-link" href="/admin/operations.html" aria-label="แจ้งเตือนร้าน">${i("Mail")} แจ้งเตือน <b data-owner-alert-count>0</b></a>` : ""}<span class="owner-identity">${esc(profile?.username || "เจ้าของร้าน")}</span><a class="btn secondary" href="/index.html">ดูหน้าร้าน ${i("ArrowUpRight")}</a><button class="logout-btn" data-action="logout">${i("LogOut")}<span>ออกจากระบบ</span></button>` : `<a class="edition-text-link" href="/index.html">กลับหน้าร้าน</a>`) : account}</div>${!managing ? `<button class="icon-btn mobile-menu" data-action="menu" aria-label="เปิดเมนู" aria-controls="main-nav" aria-expanded="false">${i("Menu")}</button>` : ""}</div></div></header>${!db ? '<div class="demo-banner">ยังไม่ได้เชื่อมต่อฐานข้อมูล — ไม่สามารถเข้าสู่ระบบหรือสั่งซื้อได้</div>' : ""}`;
+  const ownerControls = `<a class="notification-link" href="/admin/operations.html" aria-label="แจ้งเตือนร้าน">${i("Mail")} แจ้งเตือน <b data-owner-alert-count>0</b></a><span class="owner-identity">${esc(profile?.username || "เจ้าของร้าน")}</span><button type="button" class="btn secondary" data-action="enter-customer-view">${i("Eye")} มุมมองผู้ใช้</button><button type="button" class="logout-btn" data-action="logout">${i("LogOut")}<span>ออกจากระบบ</span></button>`;
+  return `<a class="skip-link" href="#main-content">ข้ามไปเนื้อหาหลัก</a><header class="${managing ? "admin-header" : ""}"><div class="header-inner">${brand()}${managing ? '<span class="workspace-tag">ระบบจัดการร้านค้า</span>' : `<nav id="main-nav" aria-label="เมนูหลัก">${links.map(([key, href, label]) => `<a class="${r === key ? "active" : ""}" ${r === key ? 'aria-current="page"' : ""} href="${href}">${label}</a>`).join("")}</nav>`}<div class="header-actions">${session && !managing ? `<a class="cart-link" href="/shop/cart.html" aria-label="ตะกร้าสินค้า">${i("ShoppingBag")}<b data-cart-count>${count()}</b></a>` : ""}<div class="session-controls">${managing ? ownerControls : account}</div>${!managing ? `<button class="icon-btn mobile-menu" data-action="menu" aria-label="เปิดเมนู" aria-controls="main-nav" aria-expanded="false">${i("Menu")}</button>` : ""}</div></div></header>${customerView ? `<section class="customer-view-bar" aria-label="มุมมองผู้ใช้"><div><strong>มุมมองผู้ใช้</strong><span>ใช้บัญชีเจ้าของร้าน · การสั่งซื้อและแก้ไขข้อมูลเป็นรายการจริง</span></div><button type="button" class="btn secondary" data-action="exit-customer-view">${i("ArrowLeft")} ออกจากมุมมองผู้ใช้</button></section>` : ""}${!db ? '<div class="demo-banner">ยังไม่ได้เชื่อมต่อฐานข้อมูล — ไม่สามารถเข้าสู่ระบบหรือสั่งซื้อได้</div>' : ""}`;
 }
-const empty = (title, text, link = "/shop", label = "เลือกชมสินค้า") =>
+const empty = (
+  title,
+  text,
+  link = session ? "/shop" : "/",
+  label = session ? "เลือกชมสินค้า" : "กลับหน้าหลัก",
+) =>
   `<div class="empty">${i("ShoppingBag")}<h2>${title}</h2><p>${text}</p><a class="btn primary" href="#${link}">${label} ${i("ArrowRight")}</a></div>`;
 function pageHead(eyebrow, title, description = "") {
   return `<div class="page-head"><span class="eyebrow">${eyebrow}</span><h1>${title}</h1>${description ? `<p>${description}</p>` : ""}</div>`;
@@ -367,6 +410,7 @@ function recoveryPage(...args) {
   return createAccountPages(pageContext()).recoveryPage(...args);
 }
 async function render() {
+  if (guardAudience()) return;
   const version = ++routeVersion;
   const r = route();
   document.body.dataset.space = r.startsWith("/admin")
@@ -432,7 +476,7 @@ async function render() {
     reportClientError(e);
     app.innerHTML =
       header() +
-      empty("ไม่สามารถโหลดข้อมูลได้", esc(e.message || "กรุณาลองอีกครั้ง"));
+      `<main class="wrap subpage" id="main-content">${empty("ไม่สามารถโหลดข้อมูลได้", esc(e.message || "กรุณาลองอีกครั้ง"))}</main>`;
     preparePage();
   }
 }
@@ -442,10 +486,11 @@ async function refreshProducts() {
     return;
   }
   if (db) {
-    const { data, error } = await db
-      .from("products")
-      .select("*")
-      .order("created_at", { ascending: true });
+    let query = db.from("products").select("*");
+    if (customerView) query = query.eq("active", true);
+    const { data, error } = await query.order("created_at", {
+      ascending: true,
+    });
     if (error) throw error;
     products = data || [];
   } else products = [];
@@ -473,6 +518,7 @@ async function refreshIdentity() {
   if (!db || !session) {
     profile = null;
     admin = false;
+    clearCustomerView();
     return;
   }
   const [p, a] = await Promise.all([
@@ -483,6 +529,13 @@ async function refreshIdentity() {
   if (a.error) throw a.error;
   profile = p.data;
   admin = a.data === true;
+  customerView = false;
+  try {
+    customerView = readCustomerView(sessionStorage, session.user.id, admin);
+  } catch {
+    /* Inaccessible session storage must default to the owner workspace. */
+  }
+  if (!admin || route().startsWith("/admin/")) clearCustomerView();
 }
 function modal(content) {
   document.querySelector("dialog.editor-dialog")?.close();
@@ -592,7 +645,23 @@ document.addEventListener("click", async (e) => {
   const action = button.dataset.action,
     id = button.dataset.id;
   try {
-    if (action === "read-notifications") {
+    if (action === "enter-customer-view") {
+      e.preventDefault();
+      if (!admin) throw Error("สำหรับเจ้าของร้านเท่านั้น");
+      try {
+        sessionStorage.setItem(customerViewKey, session.user.id);
+      } catch {
+        throw Error(
+          "เปิดมุมมองผู้ใช้ไม่ได้ กรุณาอนุญาตพื้นที่จัดเก็บข้อมูลสำหรับแท็บนี้",
+        );
+      }
+      customerView = true;
+      location.assign("/index.html");
+    } else if (action === "exit-customer-view") {
+      e.preventDefault();
+      clearCustomerView();
+      location.replace("/admin/dashboard.html");
+    } else if (action === "read-notifications") {
       if (!admin) throw Error("สำหรับเจ้าของร้านเท่านั้น");
       const { error } = await db.rpc("mark_owner_notification", { p_id: null });
       if (error) throw error;
@@ -703,6 +772,7 @@ document.addEventListener("click", async (e) => {
           // leave a stale signed-in screen or claim that revocation succeeded.
           const { data: current } = await db.auth.getSession();
           if (current.session) throw error;
+          clearCustomerView();
           session = null;
           profile = null;
           admin = false;
@@ -710,6 +780,7 @@ document.addEventListener("click", async (e) => {
           location.replace("/auth/login.html?loggedOut=local");
           return;
         }
+        clearCustomerView();
         session = null;
         profile = null;
         admin = false;
@@ -1072,10 +1143,16 @@ document.addEventListener("submit", async (e) => {
         throw Error(
           "บัญชีนี้ไม่มีสิทธิ์เจ้าของร้าน กรุณาใช้หน้าสมาชิกสำหรับเลือกซื้อสินค้า",
         );
-      await refreshProducts();
+      clearCustomerView();
+      const next = safeReturnPath(
+        new URLSearchParams(location.search).get("next"),
+      );
       location.assign(
-        safeReturnPath(new URLSearchParams(location.search).get("next")) ||
-          (admin ? "/admin/dashboard.html" : "/shop/index.html"),
+        admin
+          ? "/admin/dashboard.html"
+          : next && !next.startsWith("/admin/")
+            ? next
+            : "/shop/index.html",
       );
     } else if (form.id === "checkout-form") {
       if (!session) throw Error("กรุณาเข้าสู่ระบบ");
@@ -1301,6 +1378,7 @@ async function init() {
         if (event === "PASSWORD_RECOVERY")
           setTimeout(() => go("/reset-password"), 0);
         if (event === "SIGNED_OUT") {
+          clearCustomerView();
           profile = null;
           admin = false;
           if (!signingOut && route() !== "/login")
@@ -1316,11 +1394,16 @@ async function init() {
       session = data.session;
       await refreshIdentity();
     }
+    if (recovering && route() !== "/reset-password") {
+      go("/reset-password");
+      return;
+    }
+    if (guardAudience()) return;
     if (!session && needsMembership(route())) {
       location.replace(
         (route().startsWith("/admin")
           ? "/admin/login.html?next="
-          : "/auth/register.html?next=") +
+          : "/auth/login.html?next=") +
           encodeURIComponent(location.pathname + location.search),
       );
       return;
@@ -1536,3 +1619,11 @@ window.addEventListener("unhandledrejection", () =>
 setInterval(updatePaymentCountdown, 1000);
 setInterval(refreshOwnerAlerts, 30000);
 window.addEventListener("focus", refreshOwnerAlerts);
+
+// A browser Back/Forward cache must not restore a stale owner preview or session.
+window.addEventListener("pageshow", (event) => {
+  if (event.persisted) {
+    app.replaceChildren();
+    location.reload();
+  }
+});

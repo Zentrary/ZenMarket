@@ -33,3 +33,12 @@ Auth redirect allowlist must cover `https://zenmarket-blue.vercel.app/**`, inclu
 The customer order document never contains owner approval/shipment forms, even when an owner previews it. Administrative order details use `/admin/order.html` and recheck owner access. Owner login does not permit signup/role escalation; ordinary customers receive no management privileges.
 
 Stock expiry and in-app notifications are implemented; see [OPERATIONS.md](OPERATIONS.md) for scope and operating checks. No carrier API, automatic bank verification, refunds, profit accounting or orphan-upload cleanup is implied. Automated offsite backups and enforced signup CAPTCHA still need owner configuration. Retention/returns/contact policies, MFA and external uptime monitoring remain launch considerations. Previously committed passwords must be rotated; do not republish them.
+
+
+## Audience navigation and reversible owner view
+
+Guest navigation has only Home, Contact and Login; no cart, catalogue, orders or owner shortcut. Contact is public. Auth/signup/recovery/legal routes remain available where needed; direct member-only URLs redirect to Login with a safe return path. Member attempts to open owner URLs return to the shop before privileged page queries.
+
+The server-verified owner defaults to the workspace on login and when navigating directly to storefront URLs. The explicit **มุมมองผู้ใช้** button sets a per-tab, user-ID-bound presentation flag. It enables the ordinary customer shell, including profile, catalogue, cart and own orders, with an always-visible exit bar. Owner links and management forms are not rendered. Active-product queries and customer order details are explicitly filtered; order ownership is checked before showing snapshots/slips. Going to an owner URL, exiting, or signing out clears preview. Back/Forward-cache restoration reloads identity/route state instead of restoring a stale preview. Password recovery remains possible without entering customer view.
+
+This is UI presentation, not impersonation or a downscoped Auth session: actual owner privileges remain with the real owner in Supabase. No flags grant permissions to members. Any order/profile/address changes are real, as the banner states. Do not insert fake customers/orders to demonstrate this feature. No database migration or change to RLS/roles is needed.
