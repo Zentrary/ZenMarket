@@ -8,7 +8,6 @@ export async function renderHome({
   date,
   i,
   money,
-  safeImage,
 }) {
   let reviews = [];
   if (db) {
@@ -71,7 +70,6 @@ export async function renderHome({
   return `<main class="store-home" id="main-content">
     <section class="home-hero" aria-labelledby="home-title">
       <div class="home-intro">
-        <div class="home-identity">${store.logo_url ? `<img class="home-logo" src="${safeImage(store.logo_url)}" alt="" width="44" height="44">` : `<span class="home-monogram" aria-hidden="true">${esc([...store.shop_name][0] || "Z")}</span>`}<span>${esc(store.shop_name)}<small>ร้านค้าออนไลน์ · ดูแลโดยเจ้าของร้าน</small></span></div>
         <span class="home-kicker">ยินดีต้อนรับสู่ร้านของเรา</span>
         <h1 id="home-title">เลือกสิ่งที่ชอบ<span>ให้เป็นของคุณ<span class="home-title-dot">.</span></span></h1>
         <p class="home-description">${esc(store.tagline || "เลือกดูสินค้า สั่งซื้อ และติดตามคำสั่งซื้อได้ในที่เดียว")}</p>
