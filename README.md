@@ -1,5 +1,9 @@
 # ZenMarket
 
+ทดสอบเว็บ: https://zenmarket-blue.vercel.app · หลังบ้าน: https://zenmarket-blue.vercel.app/#/admin
+
+สถานะ: deploy Vercel READY แล้ว ใช้บัญชีทดสอบได้; ยังต้องตั้ง PromptPay จริง, Custom SMTP และข้อมูลนโยบาย/ติดต่อก่อนเปิดขายจริง
+
 ร้านค้าเจ้าของคนเดียว ภาษาไทย — HTML + CSS + JavaScript (Vanilla / Vite), Supabase Auth/PostgreSQL/Storage/Edge Functions และ Vercel ไม่ใช้ React หรือระบบ marketplace
 
 ## ฟีเจอร์
