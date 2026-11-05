@@ -2,6 +2,9 @@ import { defineConfig } from "vite";
 import { resolve } from "node:path";
 const pages = [
   "index",
+  "contact",
+  "admin/dashboard",
+  "admin/reviews",
   "shop",
   "categories",
   "product",

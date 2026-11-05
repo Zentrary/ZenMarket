@@ -8,7 +8,8 @@
     "build": "vite build",
     "test": "node --test tests/*.test.js",
     "preview": "vite preview --host 0.0.0.0",
-    "test:ui": "node tests/ui.mjs"
+    "test:ui": "node tests/ui.mjs",
+    "test:db": "node tests/database.mjs"
   },
   "dependencies": {
     "@fontsource/prompt": "^5.2.8",
@@ -17,6 +18,7 @@
     "qrcode": "^1.5.4"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.15",
     "@playwright/test": "^1.56.0",
     "@sparticuz/chromium": "^153.0.0",
     "promptpay-qr": "^0.5.0",

@@ -1,4 +1,7 @@
 export const defaultSettings = Object.freeze({
+  facebook_url: "",
+  instagram_url: "",
+  line_url: "",
   shop_name: "ZenMarket",
   tagline: "ร้านค้าออนไลน์ ดูแลโดยเจ้าของร้านโดยตรง",
   logo_url: "",

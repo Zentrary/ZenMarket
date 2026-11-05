@@ -1,3 +1,4 @@
+import { orderSteps, statusLabels } from "../experience.js";
 export function createCheckoutPages(context) {
   const {
     products,
@@ -72,18 +73,32 @@ export function createCheckoutPages(context) {
   async function ordersPage() {
     if (!session)
       return empty(
-        "ดูคำสั่งซื้อของคุณ",
-        "กรุณาเข้าสู่ระบบเพื่อติดตามคำสั่งซื้อ",
+        "กรุณาเข้าสู่ระบบ",
+        "เพื่อดูคำสั่งซื้อของคุณ",
         "/login",
         "เข้าสู่ระบบ",
       );
-    const { data, error } = await db
+    const selected = new URLSearchParams(location.search).get("status") || "";
+    let query = db
       .from("orders")
       .select("*")
       .eq("user_id", session.user.id)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .limit(100);
+    if (Object.hasOwn(statusLabels, selected))
+      query = query.eq("status", selected);
+    const { data, error } = await query;
     if (error) throw error;
-    return `<main class="wrap subpage">${pageHead("YOUR ORDERS", "คำสั่งซื้อของฉัน", "ติดตามทุกชิ้นโปรด ที่กำลังเดินทางไปหาคุณ")}${data.length ? `<div class="order-list">${data.map((o) => `<a class="order-card" href="#/order/${o.id}"><div><strong>#${o.id.slice(0, 8).toUpperCase()}</strong><small>${date(o.created_at)}</small></div><span>${o.items.length} รายการ</span><strong>${money(o.total)}</strong><span class="status ${o.status}">${statusLabel[o.status]}</span>${i("ChevronRight")}</a>`).join("")}</div>` : empty("ยังไม่มีคำสั่งซื้อ", "ชิ้นโปรดชิ้นแรก กำลังรอคุณอยู่")}</main>`;
+    return `<main class="wrap subpage">${pageHead("YOUR ORDERS", "คำสั่งซื้อของฉัน", "ติดตามตั้งแต่ชำระเงินจนถึงมือคุณ และรีวิวหลังได้รับสินค้า")}<nav class="order-filters" aria-label="สถานะคำสั่งซื้อ"><a class="pill ${!selected ? "selected" : ""}" href="/orders.html">ทั้งหมด</a>${Object.entries(
+      statusLabels,
+    )
+      .map(
+        ([key, label]) =>
+          `<a class="pill ${selected === key ? "selected" : ""}" href="/orders.html?status=${key}">${label}</a>`,
+      )
+      .join(
+        "",
+      )}</nav><p class="muted">แสดงล่าสุดไม่เกิน 100 รายการต่อสถานะ</p>${data.length ? `<div class="order-list">${data.map((o) => `<a class="order-card" href="/order.html?id=${o.id}"><div><strong>#${o.id.slice(0, 8).toUpperCase()}</strong><small>${date(o.created_at)}</small><span class="order-preview">${esc(o.items[0]?.name)}${o.items.length > 1 ? " และอีก " + (o.items.length - 1) + " รายการ" : ""}</span></div><strong>${money(o.total)}</strong><span class="status ${o.status}">${statusLabel[o.status]}</span>${i("ChevronRight")}</a>`).join("")}</div>` : empty("ยังไม่มีคำสั่งซื้อในสถานะนี้", "เลือกชมสินค้า หรือดูสถานะอื่นได้จากด้านบน")}</main>`;
   }
   async function orderPage(id) {
     if (!session)
@@ -99,23 +114,50 @@ export function createCheckoutPages(context) {
       .eq("id", id)
       .single();
     if (error) throw Error("ไม่พบคำสั่งซื้อ หรือคุณไม่มีสิทธิ์เข้าถึง");
-    const qr =
-      o.status === "pending" || o.status === "review"
-        ? await QRCode.toDataURL(promptpayPayload(o.promptpay_id, o.total), {
-            width: 360,
-            margin: 2,
-            errorCorrectionLevel: "M",
-          })
-        : "";
+    const own = o.user_id === session.user.id;
+    const qr = ["pending", "review"].includes(o.status)
+      ? await QRCode.toDataURL(promptpayPayload(o.promptpay_id, o.total), {
+          width: 360,
+          margin: 2,
+          errorCorrectionLevel: "M",
+        })
+      : "";
     let slip = "";
     if (o.slip_path) {
-      const { data } = await db.storage
+      const { data, error } = await db.storage
         .from("payment-slips")
         .createSignedUrl(o.slip_path, 120);
+      if (error) throw error;
       if (data)
         slip = `<a class="btn secondary" href="${esc(data.signedUrl)}" target="_blank" rel="noopener">${i("Eye")} ดูสลิปที่แนบ</a>`;
     }
-    return `<main class="wrap subpage"><a class="back-link" href="#${admin ? "/admin/orders" : "/orders"}">${i("ArrowLeft")} กลับรายการคำสั่งซื้อ</a>${pageHead("ORDER DETAILS", `คำสั่งซื้อ #${o.id.slice(0, 8).toUpperCase()}`, date(o.created_at))}<div class="checkout-layout"><section class="panel"><span class="status ${o.status}">${statusLabel[o.status]}</span><div class="order-products">${o.items.map((p) => `<div class="order-product"><img src="${safeImage(p.image_url)}" alt="${esc(p.name)}"><div><strong>${esc(p.name)}</strong><small>${esc(p.sku)} · ${p.quantity} ชิ้น</small></div><strong>${money(p.price * p.quantity)}</strong></div>`).join("")}</div><div class="summary-line"><span>สินค้า</span><strong>${money(o.subtotal)}</strong></div><div class="summary-line"><span>ค่าจัดส่ง</span><strong>${money(o.shipping)}</strong></div><div class="summary-total"><span>ยอดชำระ</span><strong>${money(o.total)}</strong></div><h3>ข้อมูลจัดส่ง</h3><p>${esc(o.recipient)} · ${esc(o.phone)}</p><p class="address">${esc(o.address)}</p>${o.tracking ? `<div class="notice">${i("Truck")} เลขติดตามพัสดุ: ${esc(o.tracking)}</div>` : ""}<div class="button-row">${slip}${o.status === "pending" || (admin && o.status === "review") ? `<button class="btn secondary" data-action="cancel-order" data-id="${o.id}">ยกเลิกและคืนสต็อก</button>` : ""}</div>${admin && o.status === "review" ? `<div class="notice">ตรวจสอบยอดเข้าบัญชีจริงก่อนอนุมัติ สลิปเพียงอย่างเดียวไม่ยืนยันการโอน</div><button class="btn primary" data-action="approve-order" data-id="${o.id}">${i("Check")} ตรวจยอดเงินจริงแล้ว อนุมัติชำระเงิน</button>` : ""}${admin && o.status === "paid" ? `<form id="ship-form" data-id="${o.id}">${field("เลขติดตามพัสดุ", "tracking", "text", 'maxlength="100"')}<button class="btn primary" type="submit">ยืนยันจัดส่ง</button></form>` : ""}</section><aside class="payment-card">${qr ? `<div class="promptpay-logo">Prompt<span>Pay</span></div><p>สแกนเพื่อชำระเงิน</p><img class="qr" src="${qr}" alt="QR PromptPay ยอด ${money(o.total)}"><h2>${money(o.total)}</h2><strong>${esc(o.recipient_name)}</strong><p class="muted">PromptPay ${esc(o.promptpay_id.replace(/.(?=.{4})/g, "•"))}</p><a class="btn secondary full" href="${qr}" download="zenmarket-${o.id.slice(0, 8)}.png">${i("Download")} บันทึก QR Code</a><div class="notice">ตรวจชื่อผู้รับเงินในแอปธนาคารให้ตรงกัน QR นี้ไม่ตรวจยอดอัตโนมัติ ห้ามชำระซ้ำหากโอนแล้ว</div>${o.user_id === session.user.id ? `<form id="slip-form" data-id="${o.id}"><label class="field"><span>${o.status === "review" ? "ส่งสลิปใหม่ (ถ้าจำเป็น)" : "แนบหลักฐานการชำระเงิน"}</span><input type="file" name="slip" accept="image/png,image/jpeg,image/webp" required></label><small>JPG, PNG หรือ WebP ขนาดไม่เกิน 5 MB</small><button class="btn primary full" type="submit">${i("Upload")} ส่งสลิปให้ร้านตรวจสอบ</button><p class="form-error" role="alert"></p></form>` : ""}` : `${i(o.status === "cancelled" ? "Package" : "CheckCircle2", "payment-success")}<h2>${statusLabel[o.status]}</h2><p>${o.status === "paid" ? "ร้านกำลังเตรียมจัดส่งความสุขให้คุณ" : o.status === "shipped" ? "ติดตามพัสดุได้จากเลขจัดส่งในหน้านี้" : "คำสั่งซื้อนี้ถูกยกเลิกและคืนสต็อกแล้ว"}</p>`}</aside></div></main>`;
+    const timeline =
+      o.status === "cancelled"
+        ? '<div class="notice">คำสั่งซื้อนี้ยกเลิกแล้ว ไม่มีการดำเนินการจัดส่งต่อ หากชำระเงินแล้วกรุณาติดต่อร้าน</div>'
+        : `<ol class="order-timeline">${orderSteps(o)
+            .map(
+              (step, index) =>
+                `<li class="${step.complete ? "complete" : step.current ? "current" : ""}" ${step.current ? 'aria-current="step"' : ""}><span class="step-dot">${step.complete ? i("Check") : index + 1}</span><strong>${step.title}</strong><small>${step.description}</small>${step.time ? `<time>${date(step.time)}</time>` : ""}</li>`,
+            )
+            .join("")}</ol>`;
+    let feedback = "";
+    if (o.status === "delivered") {
+      const { data: reviews, error } = await db.rpc("get_order_reviews", {
+        p_order_id: o.id,
+      });
+      if (error) throw error;
+      feedback = `<section class="panel order-feedback"><span class="eyebrow">YOUR EXPERIENCE MATTERS</span><h2>${own ? "ให้ดาวและเขียนรีวิวสินค้า" : "รีวิวของคำสั่งซื้อนี้"}</h2><p class="muted">ความคิดเห็นจากผู้ซื้อที่ได้รับสินค้าจริง ช่วยให้ร้านปรับปรุงบริการ</p>${[
+        ...new Map(o.items.map((p) => [p.id, p])).values(),
+      ]
+        .map((p) => {
+          const r = reviews.find((r) => r.product_id === p.id);
+          return own
+            ? `<form id="review-form-${p.id}" class="review-form" data-order="${o.id}" data-product="${p.id}"><h3>${esc(p.name)}</h3><fieldset class="star-picker"><legend>ให้คะแนนสินค้า</legend>${[1, 2, 3, 4, 5].map((n) => `<label><input type="radio" name="rating" value="${n}" required ${r?.rating === n ? "checked" : ""}><span>${n} ★</span></label>`).join("")}</fieldset><label class="field"><span>ความคิดเห็น (ไม่บังคับ)</span><textarea name="comment" maxlength="2000" rows="3" placeholder="คุณชอบอะไร หรืออยากให้เราปรับปรุงตรงไหน">${esc(r?.comment || "")}</textarea></label><p class="form-error" role="alert"></p><button class="btn primary" type="submit">${r ? "บันทึกการแก้ไขรีวิว" : "ส่งรีวิวสินค้า"}</button></form>`
+            : `<article class="review-card"><h3>${esc(p.name)}</h3>${r ? `<span class="review-stars">${"★".repeat(r.rating)}${"☆".repeat(5 - r.rating)}</span><p>${esc(r.comment)}</p>` : '<p class="muted">ยังไม่ได้รีวิว</p>'}</article>`;
+        })
+        .join("")}</section>`;
+    }
+    return `<main class="wrap subpage"><a class="back-link" href="${admin ? "/admin/orders.html" : "/orders.html"}">${i("ArrowLeft")} กลับรายการคำสั่งซื้อ</a>${pageHead("ORDER DETAILS", "คำสั่งซื้อ #" + o.id.slice(0, 8).toUpperCase(), date(o.created_at))}<section class="panel order-status-panel"><div class="section-heading"><h2>ติดตามคำสั่งซื้อ</h2><span class="status ${o.status}">${statusLabel[o.status]}</span></div>${timeline}</section><div class="checkout-layout"><section class="panel"><h2>รายละเอียดสินค้า</h2><div class="order-products">${o.items.map((p) => `<div class="order-product"><img src="${safeImage(p.image_url)}" alt="${esc(p.name)}"><div><strong>${esc(p.name)}</strong><small>${esc(p.sku)} · ${p.quantity} ชิ้น</small></div><strong>${money(p.price * p.quantity)}</strong></div>`).join("")}</div><div class="summary-line"><span>สินค้า</span><strong>${money(o.subtotal)}</strong></div><div class="summary-line"><span>ค่าจัดส่ง</span><strong>${money(o.shipping)}</strong></div><div class="summary-total"><span>ยอดชำระ</span><strong>${money(o.total)}</strong></div><h3>ข้อมูลจัดส่ง</h3><p>${esc(o.recipient)} · ${esc(o.phone)}</p><p class="address">${esc(o.address)}</p>${o.tracking ? `<div class="tracking-info">${i("Truck")}<div><small>เลขติดตามพัสดุ</small><strong>${esc(o.tracking)}</strong><p>ตรวจสอบกับขนส่งที่ร้านแจ้ง หากไม่ทราบขนส่งให้ติดต่อร้าน</p></div></div>` : ""}<div class="button-row">${slip}${o.status === "pending" || (admin && o.status === "review") ? `<button class="btn secondary" data-action="cancel-order" data-id="${o.id}">ยกเลิกและคืนสต็อก</button>` : ""}</div>${admin && o.status === "review" ? `<div class="notice">ตรวจยอดเข้าธนาคารจริงก่อนอนุมัติ สลิปเพียงอย่างเดียวไม่ยืนยันการโอน</div><button class="btn primary" data-action="approve-order" data-id="${o.id}">${i("Check")} ตรวจยอดเงินจริงแล้ว อนุมัติชำระเงิน</button>` : ""}${admin && o.status === "paid" ? `<form id="ship-form" data-id="${o.id}">${field("เลขติดตามพัสดุ", "tracking", "text", 'maxlength="100"')}<button class="btn primary" type="submit">ยืนยันจัดส่ง</button></form>` : ""}</section><aside class="payment-card">${qr ? `<div class="promptpay-logo">Prompt<span>Pay</span></div><p>สแกนเพื่อชำระเงิน</p><img class="qr" src="${qr}" alt="QR PromptPay ยอด ${money(o.total)}"><h2>${money(o.total)}</h2><strong>${esc(o.recipient_name)}</strong><p class="muted">PromptPay ${esc(o.promptpay_id.replace(/.(?=.{4})/g, "•"))}</p><a class="btn secondary full" href="${qr}" download="zenmarket-${o.id.slice(0, 8)}.png">${i("Download")} บันทึก QR Code</a><div class="notice">ตรวจชื่อผู้รับเงินในแอปธนาคารให้ตรงกัน QR นี้ไม่ตรวจยอดอัตโนมัติ ห้ามชำระซ้ำหากโอนแล้ว</div>${own ? `<form id="slip-form" data-id="${o.id}"><label class="field"><span>${o.status === "review" ? "ส่งสลิปใหม่ (ถ้าจำเป็น)" : "แนบหลักฐานการชำระเงิน"}</span><input type="file" name="slip" accept="image/png,image/jpeg,image/webp" required></label><small>JPG, PNG หรือ WebP ไม่เกิน 5 MB</small><button class="btn primary full" type="submit">${i("Upload")} ส่งสลิปให้ร้านตรวจสอบ</button><p class="form-error" role="alert"></p></form>` : ""}` : `${i(o.status === "cancelled" ? "Package" : "CheckCircle2", "payment-success")}<h2>${statusLabel[o.status]}</h2><p>${o.status === "paid" ? "ร้านยืนยันยอดแล้ว กำลังเตรียมสินค้า" : o.status === "shipped" ? "สินค้าอยู่ระหว่างเดินทาง ยังไม่ถือว่าได้รับจนกว่าคุณจะยืนยัน" : o.status === "delivered" ? "ขอบคุณที่อุดหนุน ให้คะแนนสินค้าและแบ่งปันความคิดเห็นด้านล่างได้เลย" : "คำสั่งซื้อนี้ถูกยกเลิกแล้ว"}</p>${own && o.status === "shipped" ? `<button class="btn primary full" data-action="receive-order" data-id="${o.id}">${i("Check")} ฉันได้รับสินค้าแล้ว</button>` : ""}<a class="btn secondary full" href="/contact.html">ติดต่อร้าน ${i("Headphones")}</a>`}</aside></div>${feedback}</main>`;
   }
   return {
     totals,

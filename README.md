@@ -1,8 +1,8 @@
 # ZenMarket
 
-ทดสอบเว็บ: https://zenmarket-blue.vercel.app · หลังบ้าน: https://zenmarket-blue.vercel.app/admin/products.html
+ทดสอบเว็บ: https://zenmarket-blue.vercel.app · หลังบ้าน: https://zenmarket-blue.vercel.app/admin/dashboard.html
 
-เว็บใช้ดีไซน์เรียบง่าย ธีมมืด (กรมท่า–เทาเข้ม) ร้านเริ่มต้นที่ **0 สินค้า** และจะแสดงเฉพาะสินค้าที่เจ้าของร้านเพิ่มเอง ยังต้องตรวจสอบบัญชี PromptPay, ตั้ง Custom SMTP และข้อมูลนโยบาย/ติดต่อก่อนเปิดขายจริง
+เว็บใช้หน้าแรกใหม่พร้อมภาพตกแต่ง CSS และธีมมืด (กรมท่า–ลาเวนเดอร์) ร้านเริ่มต้นที่ **0 สินค้า** และจะแสดงเฉพาะสินค้าที่เจ้าของร้านเพิ่มเอง ยังต้องตรวจสอบบัญชี PromptPay, ตั้ง Custom SMTP และข้อมูลนโยบาย/ติดต่อก่อนเปิดขายจริง
 
 ร้านค้าเจ้าของคนเดียว ภาษาไทย — HTML + CSS + JavaScript (Vanilla / Vite), Supabase Auth/PostgreSQL/Storage/Edge Functions และ Vercel ไม่ใช้ React หรือระบบ marketplace
 
@@ -16,6 +16,36 @@
 - Admin คนเดียว: เพิ่ม/แก้ไข/ซ่อนสินค้า, SKU ไม่ซ้ำ, หมวด, ราคา, รูปภาพอัปโหลด, สต็อก, บัญชี PromptPay
 - คำสั่งซื้อ: ที่อยู่, QR ตามยอด, ดาวน์โหลด QR, อัปโหลดสลิป private, admin ตรวจยอดจริง, จัดส่ง/เลขพัสดุ, ประวัติ
 
+## ประสบการณ์สมาชิกและหลังบ้านรุ่นใหม่
+
+- หน้าแรกเปิดให้ทุกคนชม แต่หน้าสินค้า ตะกร้า คำสั่งซื้อ ช่องทางติดต่อ และหน้าสมาชิก/หลังบ้านอื่น จะพาผู้ที่ยังไม่เข้าสู่ระบบไป `/register.html?next=...` มีลิงก์เข้าสู่ระบบสำหรับสมาชิกเดิมและกลับไปหน้าที่ตั้งใจเปิด ไม่อนุญาต next URL ภายนอก หน้า privacy/login/register/reset-password ไม่ถูกกั้น
+- อ่านสินค้าและรีวิวผ่าน API ได้เฉพาะ authenticated ด้วย ไม่ใช่ซ่อนด้วย JavaScript อย่างเดียว รูปใน public Storage ที่ทราบ URL อยู่แล้วไม่ใช่ไฟล์ลับ
+- ข้อความสำเร็จ/ผิดพลาด/ยืนยันใช้ `<dialog>` popup กลางจอ สีตัดกันและรองรับคีย์บอร์ด ยกเลิกการลบได้ด้วยปุ่มยกเลิกหรือ Escape ไม่มี browser `confirm()` และไม่มี toast สีขาวจางเดิม
+- เมนูบน: หน้าหลัก / สินค้า / คำสั่งซื้อ / ช่องทางการติดต่อ ไม่มี footer ทั้งหน้าร้านและหลังบ้าน หมวดหมู่ยังใช้กรองในหน้าสินค้าและจัดการในหลังบ้าน
+- เพิ่มสินค้าได้ **1–8 รูป** PNG/JPG/WebP รูปละ ≤5 MB เลือกหลายไฟล์พร้อมกัน มี preview และ thumbnail gallery ลูกค้ากดเปลี่ยนรูปได้ ในหน้าแก้ไขเอาเครื่องหมายออกเพื่อลบรูปเก่า รูปที่เหลือรูปแรกเป็นปก ข้อมูลสินค้ารูปเดิมยังใช้งานได้
+- ปุ่มถังขยะลบสินค้าอย่างถาวรหลังยืนยัน ไม่ลบ order snapshot หรือรีวิว/ยอดขายเดิม และไม่ยกเลิกคำสั่งซื้อค้างโดยอัตโนมัติ ใช้ “ซ่อน” หากต้องการนำกลับมาขายอีก รูป Storage ไม่ถูกลบทันทีเพื่อรักษาประวัติ เจ้าของควรกำหนดนโยบายเก็บ/ทำความสะอาดไฟล์
+- `/admin/settings.html` เพิ่มลิงก์ Facebook / Instagram / LINE ของร้าน เว้นว่างเพื่อไม่แสดง ตรวจ HTTPS และโดเมนให้ตรงช่อง หน้า `/contact.html` เปิดลิงก์แท็บใหม่อย่างปลอดภัย ไม่มีบัญชีโซเชียลสมมติเติมให้
+- Animation สำหรับภาพตกแต่ง ปุ่ม/การ์ด หน้าเว็บ และ popup พร้อม `prefers-reduced-motion` ไม่ซ่อนเนื้อหาหากปิด animation
+
+### สถานะและรีวิว
+
+1. **รอชำระเงิน** (`pending`): สร้างคำสั่งซื้อ/จองสต็อก ลูกค้าสแกน QR และแนบสลิป
+2. **รอผู้ขายยืนยัน** (`review`): ร้านตรวจยอดเข้าธนาคารจริง ไม่ใช่รับรองจากรูปสลิปเพียงอย่างเดียว
+3. **รอจัดส่ง** (`paid`): แอดมินยืนยันยอดแล้ว เตรียมสินค้า
+4. **จัดส่งแล้ว / ระหว่างจัดส่ง รอรับสินค้า** (`shipped`): แอดมินบันทึกเลขพัสดุ timeline แยกขั้นจัดส่งแล้วกับรอรับให้เห็นชัด
+5. **ได้รับสินค้าแล้ว** (`delivered`): ลูกค้าเจ้าของคำสั่งซื้อกด “ฉันได้รับสินค้าแล้ว” และยืนยัน ไม่เปลี่ยนเป็นได้รับอัตโนมัติจากเลขพัสดุ แอดมินยืนยันรับแทนลูกค้าไม่ได้
+6. หลังได้รับสินค้า ลูกค้าให้ 1–5 ดาวและคอมเมนต์ ≤2,000 ตัวอักษร (ข้อความไม่บังคับ) ได้หนึ่งรีวิวต่อสินค้า/คำสั่งซื้อ แก้ไขรีวิวเดิมได้ ชื่อผู้ใช้/คะแนน/ข้อความจะแสดงต่อสมาชิกคนอื่น ไม่มี private order ID/อีเมล/ที่อยู่ในข้อมูลรีวิวสาธารณะ
+
+`/orders.html` มีตัวกรองสถานะและแสดงล่าสุด 100 รายการต่อสถานะ รายละเอียดมี timeline และเลขพัสดุ **ไม่มีการเชื่อม API ขนส่ง/ยืนยันส่งถึงอัตโนมัติ** การยกเลิก/คืนสต็อกยังเป็นไปตามกติกาเดิม ไม่มีระบบคืนเงินอัตโนมัติ
+
+### Dashboard และรีวิวแอดมิน
+
+- `/admin/dashboard.html`: ยอดรับชำระรวม (รวมค่าส่ง ไม่ใช่กำไร), จำนวนชิ้นขาย, คำสั่งซื้อที่รอตรวจยอด/จัดส่ง, คะแนนเฉลี่ย, รีวิวล่าสุด และสินค้าใกล้หมด
+- รายได้/จำนวนขายนับ `paid`, `shipped`, `delivered` เท่านั้น ไม่รวม pending/review/cancelled และยังนับประวัติสินค้าที่ลบแล้ว
+- กราฟ 7 วันอิงวันยืนยันยอดตามเวลาไทย สำหรับรายการเก่าที่ไม่มี timestamp ใช้วันสั่งซื้อแทน ไม่สร้างวันชำระย้อนหลังขึ้นเอง
+- `/admin/reviews.html`: อ่านรีวิว กรองตามดาว และแบ่งหน้า 20 รายการ แอดมินไม่มีฟังก์ชันแก้คะแนนลูกค้า
+- RPC ยอดขายตรวจสิทธิ์เจ้าของร้านในฐานข้อมูล สมาชิกทั่วไปเรียกดูยอดร้านไม่ได้
+
 ## เริ่มในเครื่อง
 
 ```sh
@@ -27,7 +57,7 @@ npm run build
 npm test
 ```
 
-Dev server bind `0.0.0.0:5173` และอนุญาต Arena preview host `.e2b.app` ไม่มี frontend API ที่เรียก localhost ข้ามบริการ หากไม่ตั้ง env จะแสดงร้านว่าง (0 สินค้า) พร้อมป้ายเตือน และไม่อนุญาต auth/สั่งซื้อ ไม่มีการเติมสินค้าตัวอย่างอัตโนมัติ
+Dev server bind `0.0.0.0:5173` และอนุญาต Arena preview host `.e2b.app` ไม่มี frontend API ที่เรียก localhost ข้ามบริการ หากไม่ตั้ง env จะแสดงร้านว่าง (0 สินค้า) บนหน้าแรก พร้อมป้ายเตือน และไม่อนุญาต auth/สั่งซื้อ ไม่มีการเติมสินค้าตัวอย่างอัตโนมัติ
 
 ## Supabase
 
@@ -35,7 +65,7 @@ Dev server bind `0.0.0.0:5173` และอนุญาต Arena preview host `.
 
 สำหรับติดตั้งใหม่:
 
-1. สำหรับติดตั้งใหม่ รัน `supabase/migrations/001_store.sql` ใน SQL editor ฐานข้อมูลจะเริ่มต้นที่ **0 สินค้า**; `supabase/seed.sql` ตั้งใจเว้นว่าง สำหรับฐานเดิมรัน `002_remove_demo_products.sql` หนึ่งครั้งเพื่อลบเฉพาะสินค้าเดโมเดิม 8 รายการ โดยตรวจ ID + SKU + รูปเดิม ไม่ลบสินค้าที่เจ้าของเพิ่มเอง จากนั้นรัน `003_store_customization.sql` เพื่อเพิ่มการตั้งค่าร้าน หมวดหมู่แบบปรับเอง โลโก้ และค่าจัดส่งฝั่งฐานข้อมูล (ติดตั้งใหม่ให้รัน 001 → 002 → 003 ตามลำดับ)
+1. สำหรับติดตั้งใหม่ รัน `supabase/migrations/001_store.sql` ใน SQL editor ฐานข้อมูลจะเริ่มต้นที่ **0 สินค้า**; `supabase/seed.sql` ตั้งใจเว้นว่าง สำหรับฐานเดิมรัน `002_remove_demo_products.sql` หนึ่งครั้งเพื่อลบเฉพาะสินค้าเดโมเดิม 8 รายการ โดยตรวจ ID + SKU + รูปเดิม ไม่ลบสินค้าที่เจ้าของเพิ่มเอง จากนั้นรัน `003_store_customization.sql` เพื่อเพิ่มการตั้งค่าร้าน หมวดหมู่แบบปรับเอง โลโก้ และค่าจัดส่งฝั่งฐานข้อมูล แล้วรัน `004_member_experience.sql` และ `005_member_catalogue_guard.sql` (ติดตั้งใหม่รัน 001 → 005 ตามลำดับ; อัปเกรดเว็บเดิมให้รัน 004 → deploy หน้าเว็บใหม่ → 005 เพื่อไม่ตัดการอ่านแค็ตตาล็อกของหน้าเว็บรุ่นเก่าระหว่างอัปเกรด)
 2. Deploy `supabase/functions/username-login/index.ts` เป็น `username-login` โดย `verify_jwt = false` เนื่องจากใช้ก่อน login ตัว function จำกัดการลองด้วยฐานข้อมูล (ต่อ IP hash และชื่อผู้ใช้ 15 ครั้ง/15 นาที) ไม่ส่งอีเมลจาก username กลับ browser และคืนข้อผิดพลาดรวม
 3. Edge runtime ใช้ `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` ที่แพลตฟอร์มตั้งให้ **ห้าม** ใส่ service key ใน Vite env, browser หรือ Git
 4. เปิด email auth และ email confirmation, ปิด anonymous signup; ตั้ง Site URL และ Redirect URLs ตรง deployment ที่อนุญาต พร้อมเปิด refresh token rotation
@@ -58,7 +88,7 @@ on conflict(singleton) do update set user_id=excluded.user_id;
 | ชื่อผู้ใช้ | `zenadmin` |
 | อีเมลบัญชีทดสอบ | `admin@zenmarket.example` |
 | หน้าเข้าสู่ระบบ | https://zenmarket-blue.vercel.app/login.html |
-| ระบบหลังบ้าน | https://zenmarket-blue.vercel.app/admin/products.html |
+| ระบบหลังบ้าน | https://zenmarket-blue.vercel.app/admin/dashboard.html |
 | รหัสผ่าน | ไม่เผยแพร่ใน GitHub; ใช้รหัสที่ส่งให้เจ้าของร้านเป็นการส่วนตัว |
 
 **Repository นี้เป็นสาธารณะ ห้ามเพิ่มรหัสผ่านที่ยังใช้งานได้, token, service key หรือ session ลง README/โค้ด/ประวัติ Git** บุคคลทั่วไปไม่ควรได้รับสิทธิ์จัดการร้านผ่านรหัสที่เปิดเผย
@@ -97,7 +127,7 @@ on conflict(singleton) do update set user_id=excluded.user_id;
 
 ## การป้องกันที่ทำ
 
-- RLS ทุก public table; profiles/orders อ่านเฉพาะเจ้าของหรือ admin; ลูกค้าไม่มี direct insert/update orders หรือ store_admin
+- RLS ทุก public table; แค็ตตาล็อกและรีวิวอ่านได้เฉพาะสมาชิกที่เข้าสู่ระบบ; profiles/orders อ่านเฉพาะเจ้าของหรือ admin; ลูกค้าไม่มี direct insert/update orders หรือ store_admin
 - Postgres RPC ตรวจ session, ราคาจริง, stock lock ตามลำดับ, transaction rollback, idempotency key, จำกัดจำนวน, สถานะที่อนุญาต และคืนสต็อก
 - admin เป็นตาราง singleton แยกจาก user metadata, UI guard เป็นเพียงชั้นเสริม
 - payment-slips private; path เป็น user/order/UUID; ตรวจเจ้าของและสถานะ; อ่านผ่าน signed URL 120 วินาที; อนุญาต JPG/PNG/WebP ≤5 MB และไม่อนุญาต overwrite
@@ -119,15 +149,17 @@ VITE_SUPABASE_URL=https://PROJECT.supabase.co
 VITE_SUPABASE_ANON_KEY=PUBLIC_PUBLISHABLE_OR_ANON_KEY
 ```
 
-มี `vercel.json` พร้อม security headers และ **ไม่มี SPA fallback**: Vite สร้าง 21 HTML entries เช่น `/shop.html`, `/account.html`, `/admin/settings.html`; รายละเอียดสินค้า/คำสั่งซื้อใช้ `?id=UUID` รองรับเปิดตรง/รีเฟรช และย้าย bookmark เก่า `/#/...` ไป URL ใหม่โดยอัตโนมัติ ไม่ใช้ hash routing สำหรับหน้าใหม่
+มี `vercel.json` พร้อม security headers และ **ไม่มี SPA fallback**: Vite สร้าง 24 HTML entries เช่น `/shop.html`, `/account.html`, `/admin/settings.html`; รายละเอียดสินค้า/คำสั่งซื้อใช้ `?id=UUID` รองรับเปิดตรง/รีเฟรช และย้าย bookmark เก่า `/#/...` ไป URL ใหม่โดยอัตโนมัติ ไม่ใช้ hash routing สำหรับหน้าใหม่
 
 ## ทดสอบ
 
 - `npm test`: QR เปรียบเทียบกับ `promptpay-qr`, CRC, amount/ID validation, HTML escaping, cart parsing และล้างสินค้าเดิมที่ถูกลบ/ซ่อนจากตะกร้า
 - `npm run build`: production bundle
-- `npm run test:ui`: Chromium + mock Supabase API ครอบคลุม HTML แยกหน้า/ลิงก์เก่า, username และ logout สำเร็จ/ผิดพลาด, สิทธิ์สมาชิก/แอดมิน, ตั้งชื่อร้าน/โลโก้/ลบโลโก้, หมวดหมู่เพิ่ม/เปลี่ยนชื่อ/ห้ามลบหมวดที่มีสินค้า, ตะกร้า/สั่งซื้อ/QR/สลิป/อนุมัติ และ responsive 13 ขนาด 320–1920px; ไม่ใช่การยืนยัน live auth/email/payment
+- `npm run test:ui`: Chromium + mock Supabase API ตรวจ 24 routes × 7 viewports, popup/confirm/contrast/ยกเลิก/Escape, member gate และ next URL, social links, รูปหลายรูป, ลบสินค้า/ประวัติ, checkout/QR/slip, ยืนยันรับ/รีวิว, dashboard/ตัวกรองรีวิว และ logout ข้ามแท็บ ไม่ใช่ live auth/email/payment
+- `npm run test:db`: สร้าง PostgreSQL ชั่วคราวในหน่วยความจำด้วย PGlite รัน migrations 001–005 จากศูนย์ พร้อม SQL rollback ทั้ง 3 ชุด Auth/Storage เป็น schema stub ไม่ใช่บริการ Supabase จริง ไม่ต้องใช้รหัสฐานข้อมูล
 - Chromium Linux ต้องมี NSPR/NSS ในระบบ หาก sandbox ไม่มี สามารถใช้ libraries ที่ bundled ใน `@sparticuz/chromium/bin/al2023.tar.br` (ใช้เฉพาะการทดสอบ ไม่ deploy binary)
 - `tests/security.sql`: รันใน SQL editor ของ test project เป็น postgres; สร้างสินค้าทดสอบเฉพาะใน transaction ตรวจ permissions/RLS/stock/idempotency/price tampering/cancellation และ rollback ทุกครั้ง ไม่เปลี่ยนข้อมูลร้านจริง
+- `tests/member-experience.sql`: ตรวจ member-only catalogue, รีวิวหลังรับสินค้าที่ซื้อจริง, การแยก order ID ส่วนตัว, ป้องกันรีวิว/ยืนยันรับแทนคนอื่น, ยอดขาย และประวัติหลังลบสินค้า ทั้งหมด rollback
 - `tests/customization.sql`: ตรวจสิทธิ์ตั้งค่าร้าน/หมวดหมู่, การแยกข้อมูลสาธารณะจากบัญชีรับเงิน, FK/cascade และค่าจัดส่งใหม่ ด้วย transaction rollback
 
 ห้าม commit `.env`, browser session, credentials, screenshots หรือ build output ที่ไม่จำเป็น
@@ -135,6 +167,6 @@ VITE_SUPABASE_ANON_KEY=PUBLIC_PUBLISHABLE_OR_ANON_KEY
 ## การรองรับอุปกรณ์
 
 - Layout ปรับตามขนาดจอ ไม่ผูกกับยี่ห้อ: มือถือ Android/iPhone, แท็บเล็ต และคอมพิวเตอร์ผ่าน browser มาตรฐานรุ่นปัจจุบัน
-- ทดสอบ Chromium emulation 320, 360, 375, 390, 430, 600, 768, 820, 844 (แนวนอน), 1024, 1280, 1440 และ 1920px ในหน้าสินค้า, ตะกร้า/ชำระเงิน, ฟอร์มสมาชิก, บัญชี, หลังบ้าน/ตาราง และ dialog
+- ทดสอบ Chromium emulation 320, 390, 768, 844 (แนวนอน), 1024, 1440 และ 1920px ในหน้าสินค้า, ตะกร้า/ชำระเงิน, ฟอร์มสมาชิก, บัญชี, หลังบ้าน/ตาราง และ dialog
 - ปรับ input เป็น 16px เพื่อไม่ให้ iOS ซูมตอนกรอก, เมนูมือถือมี aria-expanded/ปิดด้วย Escape, รองรับ keyboard focus/reduced motion, ตารางหลังบ้านเลื่อนได้ภายในกรอบโดยไม่ดันทั้งหน้า
 - การทดสอบนี้เป็น browser emulation ไม่ใช่การรับรองว่าได้ทดสอบเครื่องจริงทุกยี่ห้อหรือ Safari/Firefox ทุกเวอร์ชัน ควรตรวจบนอุปกรณ์จริงที่ใช้ก่อนเปิดขาย

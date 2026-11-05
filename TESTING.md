@@ -1,36 +1,46 @@
 # Verification — 2026-11-05
 
-## Current revision: dark theme, real pages, owner customization
+## Member experience revision
 
-- 21 separate HTML entry documents, built by Vite. Storefront, member account and admin workspace have distinct layouts. Direct links/reloads and legacy `/#/...` bookmarks are supported. Removed the top shipping announcement.
-- Dark navy/slate palette with self-hosted Prompt; white QR background is intentionally retained for scanning.
-- Header shows signed-in username and a properly aligned logout button. Local-session logout disables buttons while pending, distinguishes local removal from remote revocation failure without leaving stale identity, and redirects other open tabs after sign-out.
-- Owner can configure shop name, tagline/about, logo upload/removal, public contact/address, shipping message, fee and free-shipping threshold. Payment-account settings stay on a separate admin page.
-- Categories are database-managed with admin-only mutation, cascading rename and protection against deleting occupied categories. Products and settings are not hardcoded.
-- Live migration `store_customization_and_categories` applied successfully. Existing owner-added product preserved: **1 product before and after migration/rollback tests**. No accounts/orders/payment settings removed, no demo products inserted. Zero `TEST-%` products remained after checks. Payment settings are present; bank ownership/validity was not verified.
+- 24 real Vite HTML entry documents. New editorial dark/lavender CSS-art landing, updated home/products/orders/contact navigation, no footer. No demo products or fake reviews/sales seeded.
+- Replaced low-contrast toast and native confirmation with centered accessible dialog popups. Notifications preserve open editor forms; destructive confirmations default focus to cancel, support Escape and restore focus. Cross-page notifications use one-time session flash.
+- Anonymous visitors are redirected from member pages to registration, preserving a validated local destination and an existing-member login link. Product/review API permissions are also restricted to authenticated users. Home, legal and authentication pages remain public.
+- Product deletion preserves immutable order items and review history. Multi-image editor supports 1–8 images, <=5 MB each, validated before upload; previews, retaining/removing images and customer gallery. Original single-cover products are migrated compatibly.
+- Social channel settings validate HTTPS platform hosts; empty values stay hidden. No invented live links/accounts.
+- Six-step order timeline distinguishes dispatch and awaiting receipt. `delivered` is customer-confirmed only after `shipped`; not an automatic carrier status. Verified-purchase reviews use guarded RPCs, one review per order/product with editable rating/comment.
+- Owner dashboard aggregates paid/shipped/delivered gross receipts including shipping, units, pending work, seven-day Bangkok-date totals, ratings and low stock. Review administration has rating filters and 20-row pagination. No profit/refund/carrier analytics implied.
 
-## Passed
+## Automated checks
 
-- `npm test`: **8 tests**, including PromptPay comparison with independent `promptpay-qr`, CRC/amount/ID validation, HTML/URL escaping, cart parsing/reconciliation, actual page mappings, auth-hash preservation, public-settings allowlist and custom shipping calculations.
-- `npm run build`: configured Supabase client included; **21 HTML outputs**, no SPA fallback rewrite. No private server credential bundled.
-- Static `no-undef` scan of shared app/page/route/settings modules, with browser globals explicitly allowed.
-- `npm run test:ui`: Chromium with mocked Supabase requests:
-  - Separate document links and legacy bookmark migration; no `#/` navigation links remain after render.
-  - Catalogue filtering/favorites/cart quantity and persistence; empty catalogue has no demo fallback.
-  - Member/admin page guards; username/header; failed and successful logout and same-browser cross-tab sign-out.
-  - Custom category creation, rename, empty-category deletion, occupied-category delete error; custom category appears in product editor and storefront filters.
-  - Shop name/contact/shipping and uploaded logo persist across page loads; uploaded logo decodes as an image; removing logo restores the default mark. Public settings form has no private payment fields.
-  - Unconfigured payment guard (mock), order creation, QR/download, slip upload/review, private payment settings and admin payment approval.
-  - **13 viewports**, **21 page routes** plus product edit dialog: 320×568, 360×800, 375×667, 390×844, 430×932, 600×960, 768×1024, 820×1180, 844×390 landscape, 1024×768, 1280×800, 1440×1000, 1920×1080. Checked document/dialog horizontal overflow and uncaught browser exceptions. Desktop/mobile screenshots visually reviewed.
-- Live Supabase `tests/security.sql`, all fixtures/settings **rolled back**: anon private-data denial, profile/order isolation, blocked role escalation/customer product insertion, authoritative prices, stock reservation, idempotency, oversized/null cart rejection, blocked self-approval and single cancellation stock restoration.
-- Live Supabase `tests/customization.sql`, all fixtures/settings **rolled back**: safe public settings exclude PromptPay/name; customer category/settings writes denied; owner category changes allowed; FK, rename cascade and occupied-category restriction; checkout charges configured 75 fee below 500 threshold and zero shipping above it, ignoring client price tampering.
-- Canonical Supabase auth redirect allowlist permits the new HTML callback paths.
+- `npm test`: **13 unit tests** — independent PromptPay/CRC/ID/amount checks, escaping/cart reconciliation, all HTML mappings, safe local post-login URLs, membership routes, social URL attack cases, legacy and multiple-image handling, progress stages, no footer/native confirm/toast.
+- `npm run test:db`: clean **001–005 migrations** and all three SQL rollback suites on PGlite embedded PostgreSQL. Auth/Storage schemas are minimal stubs; this is SQL/RLS verification, not a real Supabase Auth/Storage E2E test. Zero products remain in the temporary database after tests.
+- `npm run build`: configured production bundle, **24 HTML documents**, no SPA fallback. Public publishable key only.
+- Static undefined-variable scan of all source modules with browser globals explicitly allowed.
+- `npm run test:ui`: Chromium, mocked Supabase API:
+  - Guest home, direct-route registration redirects, safe next links and no anonymous catalogue fetch.
+  - Header menus, no footer on every route, new landing and social channel links.
+  - Popup contrast >=4.5:1, alert-dialog semantics, confirmation/cancel/Escape, no native browser dialogs.
+  - Store/logo/shipping/social persistence and malicious host rejection; dynamic categories and occupied-category error.
+  - Three-image upload/preview/gallery, product deletion cancel/confirm, preserved order/review after deletion.
+  - Cart persistence and custom shipping, member/admin UI guards, unconfigured-payment error, checkout/QR/download/slip/review, manual admin approval/tracking, customer receipt confirmation and review, escaped review markup, dashboard and rating filters.
+  - Successful, local-only-failure and cross-tab logout; logo removal; reduced-motion media preference.
+  - **24 routes × 7 viewports**: 320×568, 390×844, 768×1024, 844×390 landscape, 1024×768, 1440×1000, 1920×1080. Checks document/editor overflow and uncaught browser exceptions. Screenshots visually inspected.
+
+## Database rollout and live verification
+
+- Existing isolated ZenMarket project only. Before this revision: **1 owner-added product, 0 orders, 1 administrator, 0 test products**.
+- Migration 004 is additive and applied before frontend rollout; migration 005 activates authenticated catalogue permissions after frontend deployment, avoiding an outage for the old frontend's anonymous fetch.
+- `tests/security.sql`: anonymous/private-data isolation, privilege escalation prevention, server prices/stock/idempotency/null-cart/cancellation.
+- `tests/customization.sql`: public/private settings separation, admin-only category/settings mutations, FK/cascade/restrict and custom shipping.
+- `tests/member-experience.sql`: catalogue membership, social settings, private review order-ID protection, dashboard owner-only access, delivered-purchase/identity checks, timestamped receipt transitions, rating/comment limits, review upsert and cross-user isolation, deletion/history and authoritative sales totals.
+- Live checks use postgres transaction fixtures and **ROLLBACK**, never live orders or real product deletion. Migration changes are intentionally persistent; test data/settings are not. Production rollout status and final live results are recorded in the pull-request verification comment.
 
 ## Boundaries / launch requirements
 
-- UI tests mock API requests. Live browser → Auth/Edge Function login, confirmation/recovery email, Storage uploads and bank payment have not been verified end-to-end from this network-restricted sandbox.
-- Responsive checks use Chromium emulation, not physical-device testing or Safari/Firefox. Check real iPhone/Safari and Android/Chrome before public launch.
-- Custom SMTP is not configured. Confirm real email delivery before public registration. Replace `.example` test accounts with owner-controlled email and rotate passwords.
-- Validate the configured PromptPay receiver/name against a bank app before accepting funds. No test funds transferred. Approval remains manual: verify bank transactions, not just a slip.
-- Complete contact/privacy retention/return policies; add CAPTCHA, server Auth password minimum (frontend 12; current server default 6), monitoring/backups and a security review. Consider admin MFA with supporting UI.
-- No guarantee of universal browser/device compatibility or comprehensive security certification.
+- UI API requests are mocked. Real browser → Supabase Auth/Edge login, email confirmation/recovery, Storage upload and bank/carrier integrations are not certified end-to-end from this network-restricted sandbox.
+- Custom SMTP was previously unset. Configure and verify real confirmation email before opening mandatory registration to the public. Do not disable email verification silently to bypass this requirement.
+- Physical iPhone/Safari, Android/Chrome and Firefox have not been tested. Responsive checks are Chromium emulation, not all-device certification.
+- Replace `.example` test accounts with real owner-controlled email and rotate privately delivered passwords. No working passwords or service keys published.
+- Validate the real PromptPay account with the bank; no test money transferred. Manual bank verification, retention/returns/contact policies, CAPTCHA, monitoring/backups, stronger server Auth password minimum and a security review remain launch considerations.
+- Product images remain public Storage URLs and historical image files are retained intentionally; membership gating is not image DRM. Uploaded orphan-file cleanup is not automated.
+- No automatic delivery detection, stock expiry, refunds, profit accounting, review moderation or claim of comprehensive security coverage.
