@@ -61,47 +61,149 @@ body[data-space="admin"] .admin-header {
   color: #eeeeee;
   font-weight: 500;
 }
-/* Plain home: shop name and one sentence, followed only by real reviews. */
+/* A quiet, framed introduction fills the landing without promotional artwork. */
 .simple-home {
   width: calc(100% - 48px);
   max-width: 1120px;
   margin: 0 auto;
+  padding: 56px 0 64px;
   animation: none;
 }
+.home-welcome {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  background: #171717;
+  border: 1px solid #343434;
+  border-radius: 12px;
+  overflow: hidden;
+}
 .home-intro {
+  padding: 44px;
+  min-width: 0;
+  align-self: center;
+}
+.home-identity {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: center;
-  padding: 76px 0 48px;
+  align-items: center;
+  gap: 14px;
+  color: #b5b5b5;
+  font-size: 12px;
+  margin-bottom: 24px;
+}
+.home-logo,
+.home-monogram {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  border: 1px solid #404040;
+  border-radius: 8px;
+}
+.home-logo {
+  object-fit: contain;
+  background: #202020;
+}
+.home-monogram {
+  display: grid;
+  place-items: center;
+  background: #242424;
+  color: #eeeeee;
+  font-size: 24px;
 }
 .home-intro h1 {
-  font-size: clamp(28px, 4vw, 38px);
+  font-size: clamp(32px, 4vw, 48px);
   font-weight: 500;
-  letter-spacing: -0.8px;
-  line-height: 1.5;
-  margin-bottom: 12px;
-  max-width: 100%;
+  letter-spacing: -1.3px;
+  line-height: 1.35;
+  margin-bottom: 16px;
 }
-.home-intro p {
+.home-description {
   font-size: 14px;
-  color: var(--muted);
-  max-width: 520px;
+  color: #b5b5b5;
+  max-width: 440px;
   overflow-wrap: anywhere;
-  margin-bottom: 28px;
+  margin-bottom: 0;
 }
-.home-intro .btn {
-  padding-inline: 24px;
+.home-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  margin-top: 30px;
 }
-.home-reviews {
-  max-width: 640px;
-  margin-bottom: 64px;
-  border-top: 1px solid var(--line);
+.home-actions .btn {
+  padding-inline: 22px;
+}
+.home-actions .btn:hover {
+  transform: none;
+}
+.home-contact-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  font-size: 13px;
+  color: #cccccc;
+}
+.home-contact-link:hover {
+  color: #ffffff;
+  text-decoration: underline;
+}
+.home-details {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 28px;
+  border-left: 1px solid #343434;
+  margin: 36px 0;
+  padding: 8px 36px;
+  min-width: 0;
+}
+.home-detail {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+.home-detail > svg {
+  color: #bcbcbc;
+  margin-top: 3px;
+}
+.home-detail + .home-detail {
+  border-top: 1px solid #303030;
   padding-top: 28px;
 }
-.home-reviews h2 {
-  font-size: 16px;
-  margin-bottom: 8px;
+.home-detail h2 {
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+.home-detail p {
+  color: #aaaaaa;
+  font-size: 12px;
+  margin-bottom: 0;
+  overflow-wrap: anywhere;
+}
+.home-detail small {
+  display: block;
+  color: #bcbcbc;
+  font-size: 11px;
+  line-height: 1.9;
+  margin-top: 12px;
+}
+.home-reviews {
+  margin-top: 44px;
+  max-width: 800px;
+}
+.home-reviews-heading {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 18px;
+}
+.home-reviews-heading h2 {
+  font-size: 18px;
+  margin-bottom: 6px;
+}
+.home-reviews-heading p {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 0;
 }
 .home-review {
   padding: 22px 0;
@@ -278,8 +380,28 @@ body[data-space="admin"] .workspace-tag {
   .simple-home {
     width: calc(100% - 40px);
   }
+  .simple-home {
+    padding-top: 28px;
+    padding-bottom: 40px;
+  }
+  .home-welcome {
+    grid-template-columns: minmax(0, 1fr);
+  }
   .home-intro {
-    padding: 48px 0 32px;
+    padding: 28px 24px;
+  }
+  .home-details {
+    border-left: 0;
+    border-top: 1px solid #343434;
+    margin: 0 24px;
+    padding: 26px 0;
+    gap: 24px;
+  }
+  .home-detail + .home-detail {
+    padding-top: 24px;
+  }
+  .home-reviews {
+    margin-top: 32px;
   }
   .owner-identity {
     display: none;
