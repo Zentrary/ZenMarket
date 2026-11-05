@@ -1,6 +1,7 @@
 // Actual HTML entry points. IDs and filters use query parameters, never inline code.
 export const pagePaths = {
   "/": "/index.html",
+  "/admin/operations": "/admin/operations.html",
   "/admin/login": "/admin/login.html",
   "/admin/order": "/admin/order.html",
   "/contact": "/pages/contact.html",

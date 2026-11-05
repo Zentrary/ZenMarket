@@ -1,0 +1,49 @@
+name: Encrypted database backup
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 20 * * *' # 03:17 Bangkok, daily; schedules run on main only
+permissions:
+  contents: read
+concurrency:
+  group: zenmarket-database-backup
+  cancel-in-progress: false
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PGDATABASE: ${{ secrets.ZENMARKET_BACKUP_DB_URL }}
+      BACKUP_PASSPHRASE: ${{ secrets.ZENMARKET_BACKUP_PASSPHRASE }}
+    steps:
+      - name: Require backup configuration
+        shell: bash
+        run: |
+          if [[ -z "$PGDATABASE" || ${#BACKUP_PASSPHRASE} -lt 20 ]]; then
+            echo '::error::Configure ZENMARKET_BACKUP_DB_URL and a 20+ character ZENMARKET_BACKUP_PASSPHRASE in GitHub Actions secrets. No backup was made.'
+            exit 1
+          fi
+      - name: Dump and encrypt outside repository
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          dir=$(mktemp -d)
+          trap 'rm -rf "$dir"' EXIT
+          docker run --rm -e PGDATABASE -e PGSSLMODE=verify-full -e PGSSLROOTCERT=/etc/ssl/certs/ca-certificates.crt postgres:17 pg_dump --format=custom --no-owner --no-acl > "$dir/database.dump"
+          test -s "$dir/database.dump"
+          printf '%s' "$BACKUP_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --symmetric --cipher-algo AES256 --output "$RUNNER_TEMP/zenmarket-database.dump.gpg" "$dir/database.dump"
+          cd "$RUNNER_TEMP"
+          sha256sum zenmarket-database.dump.gpg > zenmarket-database.dump.gpg.sha256
+      - name: Store encrypted backup for 7 days
+        uses: actions/upload-artifact@v4
+        with:
+          name: zenmarket-encrypted-database-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/zenmarket-database.dump.gpg
+            ${{ runner.temp }}/zenmarket-database.dump.gpg.sha256
+          retention-days: 7
+          if-no-files-found: error
+      - name: Remove encrypted runner copies
+        if: always()
+        run: rm -f "$RUNNER_TEMP/zenmarket-database.dump.gpg" "$RUNNER_TEMP/zenmarket-database.dump.gpg.sha256"
