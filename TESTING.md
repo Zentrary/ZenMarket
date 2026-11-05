@@ -12,8 +12,8 @@
 
 ## Automated checks
 
-- `npm test`: **13 unit tests** — independent PromptPay/CRC/ID/amount checks, escaping/cart reconciliation, all HTML mappings, safe local post-login URLs, membership routes, social URL attack cases, legacy and multiple-image handling, progress stages, no footer/native confirm/toast.
-- `npm run test:db`: clean **001–005 migrations** and all three SQL rollback suites on PGlite embedded PostgreSQL. Auth/Storage schemas are minimal stubs; this is SQL/RLS verification, not a real Supabase Auth/Storage E2E test. Zero products remain in the temporary database after tests.
+- `npm test`: **16 unit tests** — independent PromptPay/CRC/ID/amount checks, escaping/cart reconciliation, all HTML mappings, safe local post-login URLs, membership routes, social URL attack cases, legacy and multiple-image handling, progress stages, no footer/native confirm/toast.
+- `npm run test:db`: clean **001–006 migrations** and all four SQL rollback suites on PGlite embedded PostgreSQL. Auth/Storage schemas are minimal stubs; this is SQL/RLS verification, not a real Supabase Auth/Storage E2E test. Zero products remain in the temporary database after tests.
 - `npm run build`: configured production bundle, **24 HTML documents**, no SPA fallback. Public publishable key only.
 - Static undefined-variable scan of all source modules with browser globals explicitly allowed.
 - `npm run test:ui`: Chromium, mocked Supabase API:
@@ -44,3 +44,13 @@
 - Validate the real PromptPay account with the bank; no test money transferred. Manual bank verification, retention/returns/contact policies, CAPTCHA, monitoring/backups, stronger server Auth password minimum and a security review remain launch considerations.
 - Product images remain public Storage URLs and historical image files are retained intentionally; membership gating is not image DRM. Uploaded orphan-file cleanup is not automated.
 - No automatic delivery detection, stock expiry, refunds, profit accounting, review moderation or claim of comprehensive security coverage.
+
+## Customer/delivery revision (006)
+
+- Added pure-helper tests for safe HTTPS favicon/fallback, stock/restock states, and copying saved/manual checkout recipient data without mutating the address book.
+- Undefined-variable scan and 24-document production build pass. Clean migrations 001–006 and all four embedded PostgreSQL rollback suites pass.
+- Extended Chromium mocked-API suite passes profile editing; address add/edit/delete/5-limit/default; checkout saved/manual selection and product breakdown; sold-out and restock refresh; merchant shipment photo previews/publishing; customer delivery feed/photo viewer/refresh; dynamic favicon and fallback. Retains the previous 24-route × 7-viewport regression suite. Additional final pass checks periodic stock polling (not only focus) and follow-up message-only updates.
+- `tests/customer-delivery.sql` also passed against the real isolated Supabase project after additive migration 006. Tests prove anonymous/direct profile-write denial, duplicate-username enforcement, self-only updates without administrator elevation, five-address cap/default reassignment, cross-user edit/delete/read denial, immutable order address snapshot, last-unit reservation/oversell rejection, admin-only atomic dispatch/publication, invalid-photo rollback, four-photo/message bounds, unpublished-photo privacy, owner-only published photo reads, and cross-customer isolation.
+- Live SQL Storage checks use metadata-only fixtures inside a rollback transaction, **not real HTTP object upload/signing or image bytes**. The browser Storage API is mocked. Address locks/default uniqueness are implemented and SQL-inspected; no multi-connection load/race benchmark was run.
+- Live final preservation counts after rollback: **1 product, 0 orders, 3 profiles, 1 admin, 0 test products, 0 saved addresses, 0 shipment updates, 0 shipment objects**; delivery bucket private and anonymous catalogue SELECT denied. No owner product/account/order was deleted and no demo data was seeded.
+- Deployment SHA, production readiness and canonical alias assignment are recorded in the PR comment. Browser-to-production HTTP is not reachable from this host-restricted sandbox; Vercel control-plane alias assignment verification is not a live-page browser check.

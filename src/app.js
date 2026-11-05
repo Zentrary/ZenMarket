@@ -1,3 +1,4 @@
+import { storeIconURL, checkoutRecipient } from "./customer.js";
 import { notify, confirmAction, flash, showFlash } from "./ui.js";
 import {
   productImages,
@@ -132,6 +133,7 @@ const read = (key, fallback) => {
     return fallback;
   }
 };
+let addresses = [];
 let products = [],
   session = null,
   profile = null,
@@ -177,6 +179,7 @@ function addCart(id) {
 function pageContext() {
   return {
     products,
+    addresses,
     session,
     profile,
     admin,
@@ -215,6 +218,15 @@ function preparePage() {
       a.setAttribute("href", pageURL(a.getAttribute("href").slice(1))),
     );
   createIcons({ icons });
+  const icon = document.querySelector('link[rel="icon"]');
+  if (icon) {
+    icon.removeAttribute("type");
+    icon.href = storeIconURL(store.logo_url);
+    icon.onerror = () => {
+      icon.onerror = null;
+      icon.href = "/favicon.svg";
+    };
+  }
 }
 async function refreshStore() {
   if (!db) return;
@@ -397,6 +409,19 @@ async function refreshProducts() {
   );
   localStorage.setItem("zen-favorites", JSON.stringify(favorites));
 }
+async function refreshAddresses() {
+  if (!db || !session) {
+    addresses = [];
+    return;
+  }
+  const { data, error } = await db
+    .from("customer_addresses")
+    .select("*")
+    .eq("user_id", session.user.id)
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  addresses = data || [];
+}
 async function refreshIdentity() {
   if (!db || !session) {
     profile = null;
@@ -453,6 +478,38 @@ function productModal(id) {
       )}</div><div id="image-preview" class="image-editor" aria-live="polite"></div><p class="muted">รูปแรกเป็นรูปปก เอาเครื่องหมายออกเพื่อนำรูปเดิมออก โดยคำสั่งซื้อเดิมยังเก็บรูปเดิมไว้</p><label class="checkbox"><input type="checkbox" name="active" ${p.active !== false ? "checked" : ""}> เปิดขายสินค้า (นำเครื่องหมายออกเพื่อซ่อน)</label><p class="form-error" role="alert"></p><button type="submit" class="btn primary full">${i("Check")} บันทึกสินค้า</button></form>`,
   );
 }
+function addressModal(id) {
+  const a = addresses.find((a) => a.id === id) || {};
+  if (!id && addresses.length >= 5) {
+    toast("บันทึกได้สูงสุด 5 ที่อยู่", true);
+    return;
+  }
+  modal(
+    `<h2>${id ? "แก้ไขที่อยู่" : "เพิ่มที่อยู่ใหม่"}</h2><form id="address-form" data-id="${a.id || ""}">${field("ชื่อเรียกที่อยู่", "label", "text", 'maxlength="40" placeholder="เช่น บ้าน หรือ ที่ทำงาน"', a.label || "")}${field("ชื่อผู้รับ", "recipient", "text", 'minlength="2" maxlength="150" autocomplete="name"', a.recipient || [profile?.first_name, profile?.last_name].filter(Boolean).join(" "))}${field("เบอร์โทรศัพท์", "phone", "tel", 'pattern="0[0-9]{9}" autocomplete="tel"', a.phone || profile?.phone || "")}<label class="field"><span>ที่อยู่จัดส่งครบถ้วน พร้อมรหัสไปรษณีย์</span><textarea name="address" required minlength="20" maxlength="1200" rows="4" autocomplete="street-address">${esc(a.address || "")}</textarea></label><label class="checkbox"><input type="checkbox" name="is_default" ${a.is_default || !addresses.length ? "checked" : ""}> ใช้เป็นที่อยู่หลัก</label><p class="form-error" role="alert"></p><button class="btn primary" type="submit">${i("Check")} บันทึกที่อยู่</button></form>`,
+  );
+}
+async function uploadShippingImages(form) {
+  const files = new FormData(form)
+    .getAll("shipping_images")
+    .filter((file) => file.size);
+  if (files.length > 4) throw Error("แนบรูปการจัดส่งได้สูงสุด 4 รูปต่ออัปเดต");
+  files.forEach(checkFile);
+  const paths = [];
+  for (const file of files) {
+    const path =
+      form.dataset.id +
+      "/" +
+      crypto.randomUUID() +
+      "." +
+      file.type.split("/")[1];
+    const { error } = await db.storage
+      .from("shipping-updates")
+      .upload(path, file, { contentType: file.type, upsert: false });
+    if (error) throw error;
+    paths.push(path);
+  }
+  return paths;
+}
 document.addEventListener("click", async (e) => {
   if (e.target.closest(".skip-link")) {
     e.preventDefault();
@@ -466,7 +523,49 @@ document.addEventListener("click", async (e) => {
   const action = button.dataset.action,
     id = button.dataset.id;
   try {
-    if (action === "add") addCart(id);
+    if (action === "edit-address") {
+      if (!session) throw Error("กรุณาเข้าสู่ระบบ");
+      addressModal(id);
+    } else if (action === "delete-address") {
+      if (
+        !(await confirmAction(
+          "ลบที่อยู่นี้จากสมุดที่อยู่? คำสั่งซื้อที่สร้างแล้วจะไม่เปลี่ยน",
+          { danger: true, title: "ลบที่อยู่" },
+        ))
+      )
+        return;
+      button.disabled = true;
+      const { error } = await db.rpc("delete_address", { p_id: id });
+      if (error) throw error;
+      await refreshAddresses();
+      await render();
+      toast("ลบที่อยู่แล้ว");
+    } else if (action === "view-shipping-photo") {
+      const { data, error } = await db.storage
+        .from("shipping-updates")
+        .createSignedUrl(button.dataset.path, 120);
+      if (error) throw error;
+      modal(
+        `<h2>รูปอัปเดตการจัดส่ง</h2><img class="shipping-photo-large" src="${esc(data.signedUrl)}" alt="รูปอัปเดตการจัดส่งขนาดใหญ่">`,
+      );
+    } else if (action === "refresh-shipping-images") {
+      button.disabled = true;
+      try {
+        await Promise.all(
+          [...document.querySelectorAll("img[data-shipping-path]")].map(
+            async (img) => {
+              const { data, error } = await db.storage
+                .from("shipping-updates")
+                .createSignedUrl(img.dataset.shippingPath, 120);
+              if (error) throw error;
+              img.src = data.signedUrl;
+            },
+          ),
+        );
+      } finally {
+        button.disabled = false;
+      }
+    } else if (action === "add") addCart(id);
     else if (action === "favorite") {
       favorites = favorites.includes(id)
         ? favorites.filter((x) => x !== id)
@@ -664,6 +763,37 @@ document.addEventListener(
   true,
 );
 document.addEventListener("change", (e) => {
+  if (e.target.id === "saved-address") {
+    const delivery = checkoutRecipient(
+      addresses.find((a) => a.id === e.target.value),
+      profile,
+    );
+    const form = e.target.form;
+    for (const key of ["recipient", "phone", "address"])
+      form.elements[key].value = delivery[key];
+  }
+  if (e.target.name === "shipping_images") {
+    clearPreviews();
+    const preview = e.target.form.querySelector(".shipping-preview");
+    preview?.replaceChildren();
+    try {
+      const files = [...e.target.files];
+      if (files.length > 4)
+        throw Error("แนบรูปการจัดส่งได้สูงสุด 4 รูปต่ออัปเดต");
+      files.forEach(checkFile);
+      files.forEach((file, index) => {
+        const url = URL.createObjectURL(file);
+        previewURLs.push(url);
+        const img = document.createElement("img");
+        img.src = url;
+        img.alt = "รูปการจัดส่ง " + (index + 1);
+        preview?.append(img);
+      });
+    } catch (error) {
+      e.target.value = "";
+      handleError(error);
+    }
+  }
   if (e.target.name === "image") {
     clearPreviews();
     const preview = document.querySelector("#image-preview");
@@ -735,7 +865,55 @@ document.addEventListener("submit", async (e) => {
       return;
     }
     if (!db) throw Error("ยังไม่ได้ตั้งค่าการเชื่อมต่อ Supabase");
-    if (form.id === "register-form") {
+    if (form.id === "profile-form") {
+      const { error } = await db.rpc("save_profile", {
+        p_first_name: data.first_name.trim(),
+        p_last_name: data.last_name.trim(),
+        p_nickname: data.nickname.trim(),
+        p_phone: data.phone.trim(),
+        p_age: Number(data.age),
+        p_username: data.username.trim().toLowerCase(),
+      });
+      if (error)
+        throw Error(
+          error.code === "23505"
+            ? "ชื่อผู้ใช้นี้มีผู้ใช้แล้ว กรุณาเลือกชื่ออื่น"
+            : error.code === "23514"
+              ? "กรุณาตรวจสอบรูปแบบข้อมูลโปรไฟล์"
+              : error.message,
+        );
+      await refreshIdentity();
+      await render();
+      toast("บันทึกโปรไฟล์แล้ว");
+    } else if (form.id === "address-form") {
+      const { error } = await db.rpc("save_address", {
+        p_id: form.dataset.id || null,
+        p_label: data.label.trim(),
+        p_recipient: data.recipient.trim(),
+        p_phone: data.phone.trim(),
+        p_address: data.address.trim(),
+        p_default: data.is_default === "on",
+      });
+      if (error) throw error;
+      form.closest("dialog").close();
+      await refreshAddresses();
+      await render();
+      toast("บันทึกที่อยู่แล้ว");
+    } else if (form.id === "email-form") {
+      const email = data.email.trim();
+      if (email.toLowerCase() === session.user.email.toLowerCase())
+        throw Error("กรุณาใช้อีเมลใหม่ที่ต่างจากอีเมลปัจจุบัน");
+      const { data: result, error } = await db.auth.updateUser(
+        { email },
+        { emailRedirectTo: location.origin + "/account.html" },
+      );
+      if (error) throw error;
+      if (result?.user) session = { ...session, user: result.user };
+      await render();
+      toast(
+        "ส่งคำขอเปลี่ยนอีเมลแล้ว โปรดยืนยันจากอีเมลที่ระบบส่งให้ อีเมลเดิมจะยังใช้จนกว่าการยืนยันเสร็จ",
+      );
+    } else if (form.id === "register-form") {
       checkPassword(data);
       const { error } = await db.auth.signUp({
         email: data.email.trim(),
@@ -945,15 +1123,37 @@ document.addEventListener("submit", async (e) => {
       form.closest("dialog").close();
       await render();
       toast("บันทึกสินค้าแล้ว");
-    } else if (form.id === "ship-form") {
-      const { error } = await db.rpc("transition_order", {
-        order_id: form.dataset.id,
-        next_status: "shipped",
-        tracking_number: data.tracking.trim(),
-      });
+    } else if (form.id === "ship-form" || form.id === "shipping-update-form") {
+      if (!admin) throw Error("สำหรับเจ้าของร้านเท่านั้น");
+      const message = String(data.shipping_message || "").trim();
+      if (
+        form.id === "shipping-update-form" &&
+        !message &&
+        !new FormData(form).getAll("shipping_images").some((file) => file.size)
+      )
+        throw Error("กรุณาระบุข้อความ หรือแนบรูปการจัดส่ง");
+      const images = await uploadShippingImages(form);
+      const { error } = await db.rpc(
+        form.id === "ship-form"
+          ? "ship_order_with_update"
+          : "add_shipping_update",
+        {
+          p_order_id: form.dataset.id,
+          p_message: message,
+          p_images: images,
+          ...(form.id === "ship-form"
+            ? { p_tracking: data.tracking.trim() }
+            : {}),
+        },
+      );
       if (error) throw error;
-      render();
-      toast("บันทึกการจัดส่งแล้ว");
+      clearPreviews();
+      await render();
+      toast(
+        form.id === "ship-form"
+          ? "บันทึกการจัดส่งแล้ว"
+          : "เผยแพร่อัปเดตการจัดส่งแล้ว",
+      );
     } else if (form.id === "forgot-form") {
       const { error } = await db.auth.resetPasswordForEmail(data.email.trim(), {
         redirectTo: location.origin + "/reset-password.html",
@@ -1009,6 +1209,8 @@ async function init() {
     }
     await refreshStore();
     await refreshProducts();
+    if (session && ["/account", "/checkout"].includes(route()))
+      await refreshAddresses();
     loading = false;
     if (recovering) go("/reset-password");
     else {
@@ -1050,3 +1252,51 @@ document.addEventListener("keydown", (e) => {
   }
 });
 if (!legacyLink) init();
+
+// Poll only catalogue/cart pages; never replace a checkout/profile/review form.
+// No service key, broad realtime publication or private order subscription needed.
+let refreshingInventory = false;
+async function refreshVisibleInventory() {
+  if (
+    loading ||
+    refreshingInventory ||
+    !session ||
+    !db ||
+    document.visibilityState !== "visible" ||
+    document.querySelector("dialog[open]") ||
+    (!["/shop", "/favorites", "/cart"].includes(route()) &&
+      !route().startsWith("/product/"))
+  )
+    return;
+  const userId = session.user.id;
+  const previous = JSON.stringify(products);
+  const draft = document.querySelector("[name=search]")?.value;
+  const selected = document.querySelector(
+    ".gallery-thumbnails [aria-pressed=true]",
+  )?.dataset.src;
+  refreshingInventory = true;
+  try {
+    await refreshProducts();
+    if (session?.user.id !== userId) return;
+    if (previous !== JSON.stringify(products)) {
+      await render();
+      if (draft !== undefined && document.querySelector("[name=search]"))
+        document.querySelector("[name=search]").value = draft;
+      if (selected) {
+        const thumb = [
+          ...document.querySelectorAll("[data-action=gallery-image]"),
+        ].find((b) => b.dataset.src === selected);
+        thumb?.click();
+      }
+    }
+  } catch (error) {
+    console.warn("Inventory refresh unavailable");
+  } finally {
+    refreshingInventory = false;
+  }
+}
+setInterval(refreshVisibleInventory, 20000);
+window.addEventListener("focus", refreshVisibleInventory);
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") refreshVisibleInventory();
+});

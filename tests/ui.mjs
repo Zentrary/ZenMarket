@@ -18,6 +18,10 @@ const errors = [];
 const nativeDialogs = [];
 let productReads = 0;
 let reviewRows = [];
+let addressRows = [],
+  shipmentRows = [],
+  customerProfile = {};
+
 const user = {
   id: "c5a5d418-c050-41c8-9079-87f2435cea2d",
   email: "user@zenmarket.example",
@@ -52,7 +56,10 @@ await page.context().route("https://*.supabase.co/**", async (route) => {
   const req = route.request(),
     url = new URL(req.url()),
     path = url.pathname;
-  if (path.startsWith("/storage/v1/object/public/"))
+  if (
+    path.startsWith("/storage/v1/object/public/") ||
+    path === "/storage/v1/mock-slip.png"
+  )
     return route.fulfill({
       status: 200,
       contentType: "image/png",
@@ -149,8 +156,58 @@ await page.context().route("https://*.supabase.co/**", async (route) => {
       username: isAdmin ? "zenadmin" : "zenuser",
       phone: "0812345678",
       age: 25,
+      ...(!isAdmin ? customerProfile : {}),
     };
-  else if (path === "/rest/v1/store_settings") {
+  else if (path === "/rest/v1/customer_addresses") result = addressRows;
+  else if (path === "/rest/v1/order_shipping_updates")
+    result = shipmentRows.filter(
+      (r) => r.order_id === url.searchParams.get("order_id").slice(3),
+    );
+  else if (path === "/rest/v1/rpc/save_profile") {
+    customerProfile = Object.fromEntries(
+      Object.entries(body).map(([k, v]) => [k.slice(2), v]),
+    );
+    result = null;
+  } else if (path === "/rest/v1/rpc/save_address") {
+    const existing = addressRows.find((a) => a.id === body.p_id);
+    const row = {
+      id: existing?.id || crypto.randomUUID(),
+      label: body.p_label,
+      recipient: body.p_recipient,
+      phone: body.p_phone,
+      address: body.p_address,
+      is_default: body.p_default || existing?.is_default || !addressRows.length,
+    };
+    if (row.is_default) addressRows.forEach((a) => (a.is_default = false));
+    if (existing) Object.assign(existing, row);
+    else addressRows.push(row);
+    result = row.id;
+  } else if (path === "/rest/v1/rpc/delete_address") {
+    addressRows = addressRows.filter((a) => a.id !== body.p_id);
+    if (addressRows.length && !addressRows.some((a) => a.is_default))
+      addressRows[0].is_default = true;
+    result = null;
+  } else if (
+    [
+      "/rest/v1/rpc/ship_order_with_update",
+      "/rest/v1/rpc/add_shipping_update",
+    ].includes(path)
+  ) {
+    if (path.endsWith("ship_order_with_update")) {
+      const order = orders.find((o) => o.id === body.p_order_id);
+      order.status = "shipped";
+      order.tracking = body.p_tracking;
+      order.shipped_at = new Date().toISOString();
+    }
+    shipmentRows.push({
+      id: crypto.randomUUID(),
+      order_id: body.p_order_id,
+      message: body.p_message || "จัดส่งสินค้าแล้ว",
+      image_paths: body.p_images,
+      created_at: new Date().toISOString(),
+    });
+    result = null;
+  } else if (path === "/rest/v1/store_settings") {
     if (req.method() === "POST") {
       products.push({
         ...body,
@@ -458,6 +515,10 @@ try {
   assert.equal(await page.locator("#image-preview img").count(), 3);
   await page.locator("#product-form button[type=submit]").click();
   await pop("บันทึกสินค้าแล้ว");
+  assert.equal(
+    await page.locator('link[rel="icon"]').getAttribute("href"),
+    shopConfig.logo_url,
+  );
   const product = products.find((p) => p.sku === "TEST-MULTI");
   assert.equal(product.image_urls.length, 3);
   await page
@@ -485,6 +546,50 @@ try {
   );
   await logout();
   await login("zenuser", "/product.html?id=" + product.id);
+  await visit("/account");
+  await page.locator("#profile-form [name=nickname]").fill("Edited nickname");
+  await page.locator("#profile-form button[type=submit]").click();
+  await pop("บันทึกโปรไฟล์แล้ว");
+  assert.equal(
+    await page.locator("#profile-form [name=nickname]").inputValue(),
+    "Edited nickname",
+  );
+  for (let n = 1; n <= 5; n++) {
+    await page
+      .locator("#address-book > .section-heading [data-action=edit-address]")
+      .click();
+    await page.locator("#address-form [name=label]").fill("Home " + n);
+    await page
+      .locator("#address-form [name=address]")
+      .fill("99 ถนนสุขุมวิท กรุงเทพมหานคร 10110");
+    await page.locator("#address-form button[type=submit]").click();
+    await pop("บันทึกที่อยู่แล้ว");
+  }
+  assert.equal(await page.locator(".address-card").count(), 5);
+  assert.equal(
+    await page
+      .locator("#address-book > .section-heading [data-action=edit-address]")
+      .isDisabled(),
+    true,
+  );
+  await page.locator(".address-card [data-action=edit-address]").nth(1).click();
+  await page.locator("#address-form [name=label]").fill("Work");
+  await page.locator("#address-form [name=is_default]").check();
+  await page.locator("#address-form button[type=submit]").click();
+  await pop("บันทึกที่อยู่แล้ว");
+  assert.match(await page.locator(".default-address").textContent(), /Work/);
+  await page
+    .locator(".address-card [data-action=delete-address]")
+    .last()
+    .click();
+  await pop("ลบที่อยู่");
+  await pop("ลบที่อยู่แล้ว");
+  assert.equal(await page.locator(".address-card").count(), 4);
+  await page.screenshot({
+    path: "/home/user/zenmarket-account-addresses.png",
+    fullPage: true,
+  });
+  await visit("/product/" + product.id);
   await page.locator("#gallery-main").waitFor();
   assert.equal(await page.locator(".gallery-thumbnails button").count(), 3);
   await page.locator(".gallery-thumbnails button").nth(1).click();
@@ -492,6 +597,23 @@ try {
     await page.locator("#gallery-main").getAttribute("src"),
     product.image_urls[1],
   );
+  // Simulate another customer buying the final unit; focus refresh must disable buying, then restock restores it.
+  product.stock = 0;
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await page.locator("[data-action=add][disabled]").waitFor();
+  assert.match(await page.locator("main").textContent(), /SOLD OUT/);
+  await visit("/shop");
+  await page
+    .locator('.is-sold-out[data-product-id="' + product.id + '"]')
+    .waitFor();
+  await page.screenshot({
+    path: "/home/user/zenmarket-sold-out.png",
+    fullPage: true,
+  });
+  await visit("/product/" + product.id);
+  product.stock = 5;
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await page.locator("[data-action=add]:not([disabled])").waitFor();
   assert.equal(await page.locator(".review-card").count(), 0);
   await page.locator("[data-action=add]").click();
   await pop("เพิ่มลงตะกร้าแล้ว");
@@ -504,9 +626,30 @@ try {
   assert.equal(await page.locator(".dashboard-kpis").count(), 0);
   assert.match(await page.locator("main").textContent(), /แอดมินเท่านั้น/);
   await visit("/checkout");
+  assert.equal(
+    await page.locator("#saved-address").inputValue(),
+    addressRows.find((a) => a.is_default).id,
+  );
+  assert.match(
+    await page.locator("#checkout-summary").textContent(),
+    /Everyday Studio Bag/,
+  );
+  assert.equal(await page.locator("#checkout-summary img").count(), 1);
+  await page.locator("#saved-address").selectOption("");
+  assert.equal(await page.locator("[name=address]").inputValue(), "");
+  await page.locator("#saved-address").selectOption(addressRows[0].id);
+  assert.equal(
+    await page.locator("[name=address]").inputValue(),
+    addressRows[0].address,
+  );
+  await page.locator("#saved-address").selectOption("");
   await page
     .locator("[name=address]")
     .fill("99 ถนนสุขุมวิท แขวงคลองตัน เขตวัฒนา กรุงเทพมหานคร 10110");
+  await page.screenshot({
+    path: "/home/user/zenmarket-checkout-items.png",
+    fullPage: true,
+  });
   await page.locator("#checkout-form button[type=submit]").click();
   await pop("ยังไม่ได้ตั้งค่าบัญชีรับเงิน");
   configured = true;
@@ -544,15 +687,47 @@ try {
   await pop("อัปเดตสถานะคำสั่งซื้อแล้ว");
   await page.locator(".status.paid").waitFor();
   await page.locator("[name=tracking]").fill("TH123456789");
+  await page
+    .locator("#ship-form [name=shipping_message]")
+    .fill("แพ็กเรียบร้อย ส่งให้ขนส่งแล้ว");
+  await page
+    .locator("#ship-form [name=shipping_images]")
+    .setInputFiles([png, { ...png, name: "parcel.png" }]);
+  assert.equal(await page.locator(".shipping-preview img").count(), 2);
   await page.locator("#ship-form button[type=submit]").click();
   await pop("บันทึกการจัดส่งแล้ว");
   assert.equal(orders[0].status, "shipped");
+  await page.locator("#shipping-update-form button[type=submit]").click();
+  await pop("กรุณาระบุข้อความ หรือแนบรูปการจัดส่ง");
+  await page
+    .locator("#shipping-update-form [name=shipping_message]")
+    .fill("ขนส่งรับพัสดุแล้ว");
+  await page.locator("#shipping-update-form button[type=submit]").click();
+  await pop("เผยแพร่อัปเดตการจัดส่งแล้ว");
+  assert.equal(shipmentRows.length, 2);
+
   assert.equal(await page.locator("[data-action=receive-order]").count(), 0);
   assert.equal(await page.locator(".review-form").count(), 0);
   await logout();
   await login("zenuser");
   await visit("/orders");
   await page.locator(".order-card").click();
+  await page.locator(".shipment-update").first().waitFor();
+  assert.match(
+    await page.locator(".shipping-updates").textContent(),
+    /แพ็กเรียบร้อย/,
+  );
+  assert.equal(await page.locator(".shipping-photo").count(), 2);
+  assert.equal(await page.locator("#shipping-update-form").count(), 0);
+  await page.screenshot({
+    path: "/home/user/zenmarket-shipping-updates.png",
+    fullPage: true,
+  });
+  await page.locator(".shipping-photo").first().click();
+  await page.locator(".shipping-photo-large").waitFor();
+  await page.locator(".editor-dialog [data-action=close-modal]").click();
+  await page.locator("[data-action=refresh-shipping-images]").click();
+
   await page.locator("[data-action=receive-order]").click();
   await pop("ยืนยันว่าได้รับสินค้า");
   await pop("ยืนยันรับสินค้าแล้ว");
@@ -678,6 +853,10 @@ try {
   await page.locator("#store-form button[type=submit]").click();
   await pop("บันทึกการตั้งค่าร้านแล้ว");
   assert.equal(await page.locator("header .shop-logo").count(), 0);
+  assert.match(
+    await page.locator('link[rel="icon"]').getAttribute("href"),
+    /favicon.svg$/,
+  );
   logoutError = true;
   await page.locator("header [data-action=logout]").click();
   await page.waitForURL("**/login.html?loggedOut=local");
@@ -686,7 +865,7 @@ try {
   assert.deepEqual(nativeDialogs, []);
   assert.deepEqual(errors, []);
   console.log(
-    "PASS: membership redirects, no anonymous catalogue fetch, home/header/no footer, accessible notifications/confirmations/cancel/Escape, social URL validation, categories, deletion/history, multi-image upload/preview/gallery, cart/shipping/QR/slip, receipt-gated reviews, admin dashboard/review filters, local/cross-tab logout, reduced motion and 24 routes × 7 viewports. API mocked; Chromium only.",
+    "PASS: membership redirects, no anonymous catalogue fetch, home/header/no footer, accessible notifications/confirmations/cancel/Escape, social URL validation, categories, deletion/history, multi-image upload/preview/gallery, cart/shipping/QR/slip, editable profile/five-address book/default/checkout selections, live sold-out/restock, checkout product details, shipping photos/private feed UI/favicon, receipt-gated reviews, admin dashboard/review filters, local/cross-tab logout, reduced motion and 24 routes × 7 viewports. API mocked; Chromium only.",
   );
 } catch (error) {
   console.log(

@@ -158,7 +158,7 @@ VITE_SUPABASE_ANON_KEY=PUBLIC_PUBLISHABLE_OR_ANON_KEY
 - `npm test`: QR เปรียบเทียบกับ `promptpay-qr`, CRC, amount/ID validation, HTML escaping, cart parsing และล้างสินค้าเดิมที่ถูกลบ/ซ่อนจากตะกร้า
 - `npm run build`: production bundle
 - `npm run test:ui`: Chromium + mock Supabase API ตรวจ 24 routes × 7 viewports, popup/confirm/contrast/ยกเลิก/Escape, member gate และ next URL, social links, รูปหลายรูป, ลบสินค้า/ประวัติ, checkout/QR/slip, ยืนยันรับ/รีวิว, dashboard/ตัวกรองรีวิว และ logout ข้ามแท็บ ไม่ใช่ live auth/email/payment
-- `npm run test:db`: สร้าง PostgreSQL ชั่วคราวในหน่วยความจำด้วย PGlite รัน migrations 001–005 จากศูนย์ พร้อม SQL rollback ทั้ง 3 ชุด Auth/Storage เป็น schema stub ไม่ใช่บริการ Supabase จริง ไม่ต้องใช้รหัสฐานข้อมูล
+- `npm run test:db`: สร้าง PostgreSQL ชั่วคราวในหน่วยความจำด้วย PGlite รัน migrations 001–006 จากศูนย์ พร้อม SQL rollback ทั้ง 4 ชุด Auth/Storage เป็น schema stub ไม่ใช่บริการ Supabase จริง ไม่ต้องใช้รหัสฐานข้อมูล
 - Chromium Linux ต้องมี NSPR/NSS ในระบบ หาก sandbox ไม่มี สามารถใช้ libraries ที่ bundled ใน `@sparticuz/chromium/bin/al2023.tar.br` (ใช้เฉพาะการทดสอบ ไม่ deploy binary)
 - `tests/security.sql`: รันใน SQL editor ของ test project เป็น postgres; สร้างสินค้าทดสอบเฉพาะใน transaction ตรวจ permissions/RLS/stock/idempotency/price tampering/cancellation และ rollback ทุกครั้ง ไม่เปลี่ยนข้อมูลร้านจริง
 - `tests/member-experience.sql`: ตรวจ member-only catalogue, รีวิวหลังรับสินค้าที่ซื้อจริง, การแยก order ID ส่วนตัว, ป้องกันรีวิว/ยืนยันรับแทนคนอื่น, ยอดขาย และประวัติหลังลบสินค้า ทั้งหมด rollback
@@ -172,3 +172,15 @@ VITE_SUPABASE_ANON_KEY=PUBLIC_PUBLISHABLE_OR_ANON_KEY
 - ทดสอบ Chromium emulation 320, 390, 768, 844 (แนวนอน), 1024, 1440 และ 1920px ในหน้าสินค้า, ตะกร้า/ชำระเงิน, ฟอร์มสมาชิก, บัญชี, หลังบ้าน/ตาราง และ dialog
 - ปรับ input เป็น 16px เพื่อไม่ให้ iOS ซูมตอนกรอก, เมนูมือถือมี aria-expanded/ปิดด้วย Escape, รองรับ keyboard focus/reduced motion, ตารางหลังบ้านเลื่อนได้ภายในกรอบโดยไม่ดันทั้งหน้า
 - การทดสอบนี้เป็น browser emulation ไม่ใช่การรับรองว่าได้ทดสอบเครื่องจริงทุกยี่ห้อหรือ Safari/Firefox ทุกเวอร์ชัน ควรตรวจบนอุปกรณ์จริงที่ใช้ก่อนเปิดขาย
+
+## โปรไฟล์ สมุดที่อยู่ และอัปเดตจัดส่ง
+
+- หน้า `/account.html`: แก้ไขชื่อ นามสกุล ชื่อเล่น อายุ เบอร์โทร และชื่อผู้ใช้ของตัวเอง; เปลี่ยนอีเมลผ่าน Supabase Auth พร้อมยืนยันอีเมล ไม่แก้ auth.users โดยตรง ไม่เปลี่ยนสิทธิ์แอดมิน
+- สมุดที่อยู่ส่วนตัวสูงสุด **5 แห่ง** เพิ่ม/แก้ไข/ลบ และเลือกที่อยู่หลักได้ ระบบล็อกการแก้ไขต่อผู้ใช้ใน transaction ป้องกันการเพิ่มเกินจำนวนพร้อมกัน เมื่อมีที่อยู่จะมีที่อยู่หลักหนึ่งแห่งเสมอ
+- หน้า checkout เลือกที่อยู่ที่บันทึกหรือกรอกเองได้ แก้รายละเอียดเฉพาะออเดอร์ได้ และแสดงรูป/ชื่อ/SKU/จำนวน/ราคาสินค้า ข้อมูลจัดส่งถูกบันทึกเป็น snapshot การแก้สมุดที่อยู่ภายหลังไม่แก้ออเดอร์เดิม
+- สินค้าหมดแสดง **SOLD OUT / สินค้าหมดแล้ว** และปิดปุ่มซื้อ มีป้ายสต็อกใกล้หมด; หน้าสินค้า/รายการโปรด/ตะกร้าตรวจสต็อกทุก **20 วินาทีเมื่อแท็บเปิดอยู่** และเมื่อกลับเข้าแท็บ ไม่รบกวนฟอร์ม checkout/โปรไฟล์/รีวิว สต็อกจริงยังตัดแบบ atomic ที่ฐานข้อมูลตอนสร้างคำสั่งซื้อ ไม่ใช่ระบบ realtime ทันทีทุกมิลลิวินาที
+- แอดมินเปิดออเดอร์ที่ยืนยันการชำระเงิน ใส่เลขพัสดุ ข้อความ และรูปขณะยืนยันจัดส่ง จากนั้นเพิ่มความเคลื่อนไหวภายหลังได้ ลูกค้าอ่านจากหน้ารายละเอียดออเดอร์ (เปิดใหม่/รีเฟรชเพื่อดูอัปเดตล่าสุด) ไม่มีการเชื่อม API ขนส่งจริง
+- อัปเดตละไม่เกิน **4 รูป**, JPG/PNG/WebP รูปละไม่เกิน **5 MB**, ข้อความไม่เกิน 1,000 ตัวอักษร; รูปใน bucket `shipping-updates` เป็น private อ่านเฉพาะเจ้าของออเดอร์หรือแอดมินผ่าน signed URL 120 วินาที พร้อมปุ่มโหลดรูปใหม่ สถานะจัดส่งและการเผยแพร่รายการแรกเป็น transaction เดียวกัน แต่ HTTP upload ไม่ร่วม transaction และไฟล์ที่อัปโหลดแล้วเผยแพร่ไม่สำเร็จอาจค้างให้แอดมินล้างภายหลัง
+- เปลี่ยนโลโก้ในตั้งค่าร้านแล้ว favicon เปลี่ยนตามเมื่อเปิด/โหลดหน้า ใช้ไอคอนสำรองเมื่อไม่มีโลโก้ บางเบราว์เซอร์อาจ cache ไอคอนเดิมชั่วคราว
+- Migration `006_customer_delivery.sql` เป็น additive และต้องรันก่อน deploy frontend ใหม่นี้ ไม่ลบสินค้าหรือแก้บัญชีเดิม
+- `tests/customer-delivery.sql`: self-only profile, address cap/default/ownership/snapshot, last-item/oversell, atomic shipment/private photo RLS ตรวจด้วย transaction rollback ไม่มีข้อมูลสั่งซื้อทดสอบค้าง
