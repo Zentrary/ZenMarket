@@ -83,6 +83,7 @@ export function safeReturnPath(value) {
 export function needsMembership(route) {
   return ![
     "/",
+    "/contact",
     "/login",
     "/register",
     "/reset-password",

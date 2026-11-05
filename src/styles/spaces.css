@@ -61,7 +61,7 @@ body[data-space="admin"] .admin-header {
   color: #eeeeee;
   font-weight: 500;
 }
-/* Plain, left-aligned home: shop name, one sentence and one link. */
+/* Plain home: shop name and one sentence, followed only by real reviews. */
 .simple-home {
   width: calc(100% - 48px);
   max-width: 1120px;
@@ -69,12 +69,11 @@ body[data-space="admin"] .admin-header {
   animation: none;
 }
 .home-intro {
-  min-height: min(66svh, 560px);
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   justify-content: center;
-  padding: 64px 0;
+  padding: 76px 0 48px;
 }
 .home-intro h1 {
   font-size: clamp(28px, 4vw, 38px);
@@ -280,8 +279,7 @@ body[data-space="admin"] .workspace-tag {
     width: calc(100% - 40px);
   }
   .home-intro {
-    min-height: 58svh;
-    padding: 48px 0;
+    padding: 48px 0 32px;
   }
   .owner-identity {
     display: none;
@@ -295,5 +293,38 @@ body[data-space="admin"] .workspace-tag {
   }
   .notification-link {
     font-size: 10px;
+  }
+}
+
+/* A reversible, per-tab owner preview; customer navigation is otherwise unchanged. */
+.customer-view-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  padding: 14px max(24px, calc((100% - 1120px) / 2));
+  background: #202020;
+  border-bottom: 1px solid #444444;
+  font-size: 12px;
+}
+.customer-view-bar strong,
+.customer-view-bar span {
+  display: block;
+}
+.customer-view-bar span {
+  color: var(--muted);
+  font-size: 11px;
+  margin-top: 4px;
+}
+.customer-view-bar .btn {
+  font-size: 12px;
+}
+@media (max-width: 700px) {
+  .customer-view-bar {
+    padding: 14px 20px;
+  }
+  .admin-header .session-controls {
+    flex-wrap: wrap;
   }
 }
