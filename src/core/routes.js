@@ -1,24 +1,26 @@
 // Actual HTML entry points. IDs and filters use query parameters, never inline code.
 export const pagePaths = {
   "/": "/index.html",
-  "/contact": "/contact.html",
+  "/admin/login": "/admin/login.html",
+  "/admin/order": "/admin/order.html",
+  "/contact": "/pages/contact.html",
   "/admin/dashboard": "/admin/dashboard.html",
   "/admin/reviews": "/admin/reviews.html",
-  "/shop": "/shop.html",
-  "/collections": "/categories.html",
-  "/product": "/product.html",
-  "/cart": "/cart.html",
-  "/checkout": "/checkout.html",
-  "/login": "/login.html",
-  "/register": "/register.html",
-  "/account": "/account.html",
-  "/orders": "/orders.html",
-  "/order": "/order.html",
-  "/favorites": "/favorites.html",
-  "/about": "/about.html",
-  "/help": "/help.html",
-  "/privacy": "/privacy.html",
-  "/reset-password": "/reset-password.html",
+  "/shop": "/shop/index.html",
+  "/collections": "/shop/categories.html",
+  "/product": "/shop/product.html",
+  "/cart": "/shop/cart.html",
+  "/checkout": "/shop/checkout.html",
+  "/login": "/auth/login.html",
+  "/register": "/auth/register.html",
+  "/account": "/account/index.html",
+  "/orders": "/account/orders.html",
+  "/order": "/account/order.html",
+  "/favorites": "/account/favorites.html",
+  "/about": "/pages/about.html",
+  "/help": "/pages/help.html",
+  "/privacy": "/pages/privacy.html",
+  "/reset-password": "/auth/reset-password.html",
   "/admin": "/admin/products.html",
   "/admin/products": "/admin/products.html",
   "/admin/categories": "/admin/categories.html",
@@ -28,7 +30,7 @@ export const pagePaths = {
 };
 export function pageURL(route) {
   const [path, query = ""] = route.split("?");
-  const match = path.match(/^\/(product|order)\/([^/]+)$/);
+  const match = path.match(/^\/(product|order|admin\/order)\/([^/]+)$/);
   if (match)
     return pagePaths["/" + match[1]] + "?id=" + encodeURIComponent(match[2]);
   return (pagePaths[path] || "/index.html") + (query ? "?" + query : "");
@@ -42,7 +44,7 @@ export function currentRoute(locationLike = location) {
   if (!entry) return "/not-found";
   const base = entry[0];
   const id = new URLSearchParams(locationLike.search).get("id");
-  return (base === "/order" || base === "/product") && id
+  return ["/order", "/product", "/admin/order"].includes(base) && id
     ? base + "/" + id
     : base;
 }
@@ -64,9 +66,12 @@ export function safeReturnPath(value) {
     if (
       u.origin !== "https://zenmarket.invalid" ||
       !Object.values(pagePaths).includes(u.pathname) ||
-      ["/login.html", "/register.html", "/reset-password.html"].includes(
-        u.pathname,
-      )
+      [
+        "/auth/login.html",
+        "/auth/register.html",
+        "/auth/reset-password.html",
+        "/admin/login.html",
+      ].includes(u.pathname)
     )
       return "";
     return u.pathname + u.search;
@@ -82,5 +87,6 @@ export function needsMembership(route) {
     "/reset-password",
     "/privacy",
     "/not-found",
+    "/admin/login",
   ].includes(route);
 }

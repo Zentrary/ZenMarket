@@ -1,19 +1,21 @@
-import { storeIconURL, checkoutRecipient } from "./customer.js";
-import { notify, confirmAction, flash, showFlash } from "./ui.js";
+import { renderHome } from "./pages/storefront/home.js";
+import { storeIconURL, checkoutRecipient } from "./core/customer.js";
+import { notify, confirmAction, flash, showFlash } from "./core/ui.js";
 import {
   productImages,
   safeSocialURL,
   statusLabels,
   reviewColumns,
-} from "./experience.js";
-import { needsMembership, safeReturnPath } from "./routes.js";
+} from "./core/experience.js";
+import { needsMembership, safeReturnPath } from "./core/routes.js";
 import "@fontsource/prompt/thai-400.css";
 import "@fontsource/prompt/thai-500.css";
 import "@fontsource/prompt/thai-600.css";
 import "@fontsource/prompt/latin-400.css";
 import "@fontsource/prompt/latin-500.css";
 import "@fontsource/prompt/latin-600.css";
-import "./style.css";
+import "./styles/base.css";
+import "./styles/spaces.css";
 import { createClient } from "@supabase/supabase-js";
 import {
   createIcons,
@@ -64,13 +66,16 @@ import {
   promptpayPayload,
   validateCart,
   reconcileCart,
-} from "./lib.js";
-import { defaultSettings, normalizeSettings, shippingFor } from "./settings.js";
-import { pageURL, currentRoute, migrateLegacyLink } from "./routes.js";
-import { createStorePages } from "./pages/store.js";
-import { createCheckoutPages } from "./pages/checkout.js";
-import { createAccountPages } from "./pages/account.js";
-import { createAdminPages } from "./pages/admin.js";
+} from "./core/lib.js";
+import {
+  defaultSettings,
+  normalizeSettings,
+  shippingFor,
+} from "./core/settings.js";
+import { pageURL, currentRoute, migrateLegacyLink } from "./core/routes.js";
+import { createStorePages } from "./pages/storefront/store.js";
+import { createCheckoutPages } from "./pages/customer/checkout.js";
+import { createAccountPages } from "./pages/customer/account.js";
 let store = { ...defaultSettings };
 let categories = [{ name: "ทั้งหมด", icon: "LayoutGrid" }];
 let signingOut = false;
@@ -258,9 +263,9 @@ function header() {
   const r = route();
   const managing = r.startsWith("/admin");
   const account = session
-    ? `<a class="user-chip" href="/account.html" aria-label="บัญชี ${esc(profile?.username || session.user.email)}">${i("UserRound")}<span>@${esc(profile?.username || session.user.email)}</span></a><button type="button" class="logout-btn" data-action="logout">${i("LogOut")}<span>ออกจากระบบ</span></button>`
-    : `<a class="btn secondary login-link" href="/login.html">${i("UserRound")} เข้าสู่ระบบ</a>`;
-  return `<a class="skip-link" href="#main-content">ข้ามไปเนื้อหาหลัก</a><header class="${managing ? "admin-header" : ""}"><div class="header-inner">${brand()}${managing ? '<span class="workspace-tag">ระบบจัดการร้านค้า</span>' : `<nav id="main-nav" aria-label="เมนูหลัก"><a class="${r === "/" ? "active" : ""}" href="/index.html">หน้าหลัก</a><a class="${r === "/shop" ? "active" : ""}" href="/shop.html">สินค้า</a><a class="${r === "/orders" ? "active" : ""}" href="/orders.html">คำสั่งซื้อ</a><a class="${r === "/contact" ? "active" : ""}" href="/contact.html">ช่องทางการติดต่อ</a></nav>`}<div class="header-actions">${!managing ? `<a class="cart-link" href="/cart.html" aria-label="ตะกร้าสินค้า">${i("ShoppingBag")}<b data-cart-count>${count()}</b></a>` : ""}<div class="session-controls">${admin && !managing ? `<a href="/admin/dashboard.html" class="icon-btn dashboard-link" aria-label="แดชบอร์ดร้านค้า">${i("LayoutGrid")}</a>` : ""}${account}</div>${!managing ? `<button class="icon-btn mobile-menu" data-action="menu" aria-label="เปิดเมนู" aria-controls="main-nav" aria-expanded="false">${i("Menu")}</button>` : ""}</div></div></header>${!db ? '<div class="demo-banner">ยังไม่ได้เชื่อมต่อฐานข้อมูล — ไม่สามารถเข้าสู่ระบบหรือสั่งซื้อได้</div>' : ""}`;
+    ? `<a class="user-chip" href="/account/index.html" aria-label="บัญชี ${esc(profile?.username || session.user.email)}">${i("UserRound")}<span>@${esc(profile?.username || session.user.email)}</span></a><button type="button" class="logout-btn" data-action="logout">${i("LogOut")}<span>ออกจากระบบ</span></button>`
+    : `<a class="btn secondary login-link" href="/auth/login.html">${i("UserRound")} เข้าสู่ระบบ</a>`;
+  return `<a class="skip-link" href="#main-content">ข้ามไปเนื้อหาหลัก</a><header class="${managing ? "admin-header" : ""}"><div class="header-inner">${brand()}${managing ? '<span class="workspace-tag">ระบบจัดการร้านค้า</span>' : `<nav id="main-nav" aria-label="เมนูหลัก"><a class="${r === "/" ? "active" : ""}" href="/index.html">หน้าหลัก</a><a class="${r === "/shop" ? "active" : ""}" href="/shop/index.html">สินค้า</a><a class="${r === "/orders" ? "active" : ""}" href="/account/orders.html">คำสั่งซื้อ</a><a class="${r === "/contact" ? "active" : ""}" href="/pages/contact.html">ช่องทางการติดต่อ</a></nav>`}<div class="header-actions">${!managing ? `<a class="cart-link" href="/shop/cart.html" aria-label="ตะกร้าสินค้า">${i("ShoppingBag")}<b data-cart-count>${count()}</b></a>` : ""}<div class="session-controls">${admin && !managing ? `<a href="/admin/dashboard.html" class="icon-btn dashboard-link" aria-label="แดชบอร์ดร้านค้า">${i("LayoutGrid")}</a>` : ""}${managing ? (session ? `<span class="owner-identity">${esc(profile?.username || "เจ้าของร้าน")}</span><a class="btn secondary" href="/index.html">ดูหน้าร้าน ${i("ArrowUpRight")}</a><button class="logout-btn" data-action="logout">${i("LogOut")}<span>ออกจากระบบ</span></button>` : `<a class="edition-text-link" href="/index.html">กลับหน้าร้าน</a>`) : account}</div>${!managing ? `<button class="icon-btn mobile-menu" data-action="menu" aria-label="เปิดเมนู" aria-controls="main-nav" aria-expanded="false">${i("Menu")}</button>` : ""}</div></div></header>${!db ? '<div class="demo-banner">ยังไม่ได้เชื่อมต่อฐานข้อมูล — ไม่สามารถเข้าสู่ระบบหรือสั่งซื้อได้</div>' : ""}`;
 }
 const empty = (title, text, link = "/shop", label = "เลือกชมสินค้า") =>
   `<div class="empty">${i("ShoppingBag")}<h2>${title}</h2><p>${text}</p><a class="btn primary" href="#${link}">${label} ${i("ArrowRight")}</a></div>`;
@@ -277,7 +282,7 @@ function catalogList(...args) {
   return createStorePages(pageContext()).catalogList(...args);
 }
 function home(...args) {
-  return createStorePages(pageContext()).home(...args);
+  return renderHome(pageContext());
 }
 function shop(...args) {
   return createStorePages(pageContext()).shop(...args);
@@ -289,16 +294,28 @@ function productPage(...args) {
   return createStorePages(pageContext()).productPage(...args);
 }
 function cartRows(...args) {
-  return createCheckoutPages(pageContext()).cartRows(...args);
+  return createCheckoutPages({
+    ...pageContext(),
+    admin: admin && route().startsWith("/admin/"),
+  }).cartRows(...args);
 }
 function totals(...args) {
-  return createCheckoutPages(pageContext()).totals(...args);
+  return createCheckoutPages({
+    ...pageContext(),
+    admin: admin && route().startsWith("/admin/"),
+  }).totals(...args);
 }
 function summary(...args) {
-  return createCheckoutPages(pageContext()).summary(...args);
+  return createCheckoutPages({
+    ...pageContext(),
+    admin: admin && route().startsWith("/admin/"),
+  }).summary(...args);
 }
 function cartPage(...args) {
-  return createCheckoutPages(pageContext()).cartPage(...args);
+  return createCheckoutPages({
+    ...pageContext(),
+    admin: admin && route().startsWith("/admin/"),
+  }).cartPage(...args);
 }
 function field(label, name, type = "text", extra = "", value = "") {
   return `<label class="field"><span>${label}</span><input type="${type}" name="${name}" ${extra} value="${esc(value)}" required></label>`;
@@ -307,7 +324,10 @@ function authPage(...args) {
   return createAccountPages(pageContext()).authPage(...args);
 }
 function checkoutPage(...args) {
-  return createCheckoutPages(pageContext()).checkoutPage(...args);
+  return createCheckoutPages({
+    ...pageContext(),
+    admin: admin && route().startsWith("/admin/"),
+  }).checkoutPage(...args);
 }
 const statusLabel = statusLabels;
 const date = (s) =>
@@ -316,15 +336,22 @@ const date = (s) =>
     timeStyle: "short",
   });
 async function ordersPage(...args) {
-  return createCheckoutPages(pageContext()).ordersPage(...args);
+  return createCheckoutPages({
+    ...pageContext(),
+    admin: admin && route().startsWith("/admin/"),
+  }).ordersPage(...args);
 }
 async function orderPage(...args) {
-  return createCheckoutPages(pageContext()).orderPage(...args);
+  return createCheckoutPages({
+    ...pageContext(),
+    admin: admin && route().startsWith("/admin/"),
+  }).orderPage(...args);
 }
 function accountPage(...args) {
   return createAccountPages(pageContext()).accountPage(...args);
 }
 async function adminPage(...args) {
+  const { createAdminPages } = await import("./pages/admin/index.js");
   return createAdminPages(pageContext()).adminPage(...args);
 }
 function infoPage(...args) {
@@ -336,12 +363,17 @@ function recoveryPage(...args) {
 async function render() {
   const version = ++routeVersion;
   const r = route();
+  document.body.dataset.space = r.startsWith("/admin")
+    ? "admin"
+    : r === "/"
+      ? "home"
+      : "customer";
   let content = "";
   app.innerHTML =
     header() +
     `<main class="wrap loading">กำลังจัดเตรียมสิ่งดีๆ ให้คุณ…</main>`;
   try {
-    if (r === "/") content = home();
+    if (r === "/") content = await home();
     else if (r === "/shop") content = shop();
     else if (r === "/collections") content = collections();
     else if (r.startsWith("/product/"))
@@ -351,6 +383,11 @@ async function render() {
     else if (r === "/cart") content = cartPage();
     else if (r === "/checkout") content = checkoutPage();
     else if (r === "/login") content = authPage();
+    else if (r === "/admin/login") {
+      const { ownerLogin } = await import("./pages/admin/login.js");
+      content = ownerLogin(pageContext());
+    } else if (r.startsWith("/admin/order/"))
+      content = admin ? await orderPage(r.split("/")[3]) : await adminPage();
     else if (r === "/register") content = authPage(true);
     else if (r === "/account") content = accountPage();
     else if (r === "/orders") content = await ordersPage();
@@ -633,14 +670,14 @@ document.addEventListener("click", async (e) => {
           profile = null;
           admin = false;
           routeVersion++;
-          location.replace("/login.html?loggedOut=local");
+          location.replace("/auth/login.html?loggedOut=local");
           return;
         }
         session = null;
         profile = null;
         admin = false;
         routeVersion++;
-        location.replace("/login.html?loggedOut=1");
+        location.replace("/auth/login.html?loggedOut=1");
       } finally {
         signingOut = false;
         buttons.forEach((b) => {
@@ -905,7 +942,7 @@ document.addEventListener("submit", async (e) => {
         throw Error("กรุณาใช้อีเมลใหม่ที่ต่างจากอีเมลปัจจุบัน");
       const { data: result, error } = await db.auth.updateUser(
         { email },
-        { emailRedirectTo: location.origin + "/account.html" },
+        { emailRedirectTo: location.origin + "/account/index.html" },
       );
       if (error) throw error;
       if (result?.user) session = { ...session, user: result.user };
@@ -919,7 +956,7 @@ document.addEventListener("submit", async (e) => {
         email: data.email.trim(),
         password: data.password,
         options: {
-          emailRedirectTo: location.origin + "/account.html",
+          emailRedirectTo: location.origin + "/account/index.html",
           data: {
             first_name: data.first_name.trim(),
             last_name: data.last_name.trim(),
@@ -960,10 +997,14 @@ document.addEventListener("submit", async (e) => {
       if (sessionError) throw sessionError;
       session = result.session;
       await refreshIdentity();
+      if (form.dataset.owner && !admin)
+        throw Error(
+          "บัญชีนี้ไม่มีสิทธิ์เจ้าของร้าน กรุณาใช้หน้าสมาชิกสำหรับเลือกซื้อสินค้า",
+        );
       await refreshProducts();
       location.assign(
         safeReturnPath(new URLSearchParams(location.search).get("next")) ||
-          (admin ? "/admin/dashboard.html" : "/shop.html"),
+          (admin ? "/admin/dashboard.html" : "/shop/index.html"),
       );
     } else if (form.id === "checkout-form") {
       if (!session) throw Error("กรุณาเข้าสู่ระบบ");
@@ -1156,7 +1197,7 @@ document.addEventListener("submit", async (e) => {
       );
     } else if (form.id === "forgot-form") {
       const { error } = await db.auth.resetPasswordForEmail(data.email.trim(), {
-        redirectTo: location.origin + "/reset-password.html",
+        redirectTo: location.origin + "/auth/reset-password.html",
       });
       if (error) throw error;
       form.closest("dialog").close();
@@ -1191,7 +1232,10 @@ async function init() {
           profile = null;
           admin = false;
           if (!signingOut && route() !== "/login")
-            setTimeout(() => location.replace("/login.html?loggedOut=1"), 0);
+            setTimeout(
+              () => location.replace("/auth/login.html?loggedOut=1"),
+              0,
+            );
         }
         if (event === "TOKEN_REFRESHED")
           setTimeout(() => refreshIdentity().catch(handleError), 0);
@@ -1202,7 +1246,9 @@ async function init() {
     }
     if (!session && needsMembership(route())) {
       location.replace(
-        "/register.html?next=" +
+        (route().startsWith("/admin")
+          ? "/admin/login.html?next="
+          : "/auth/register.html?next=") +
           encodeURIComponent(location.pathname + location.search),
       );
       return;
