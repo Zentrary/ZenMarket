@@ -19,6 +19,7 @@ export function createAdminPages(context) {
     statusLabel,
   } = context;
   const tabs = [
+    ["operations", "ShieldCheck", "แจ้งเตือนและดูแลระบบ", "ออเดอร์ สลิป ปัญหา และสำรองข้อมูล"],
     [
       "dashboard",
       "LayoutGrid",

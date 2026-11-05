@@ -1,3 +1,5 @@
+import { encryptBackup } from "./core/backup.js";
+import { mountCaptcha, captchaToken, resetCaptcha } from "./core/captcha.js";
 import { renderHome } from "./pages/storefront/home.js";
 import { storeIconURL, checkoutRecipient } from "./core/customer.js";
 import { notify, confirmAction, flash, showFlash } from "./core/ui.js";
@@ -154,6 +156,7 @@ if (!Array.isArray(favorites)) favorites = [];
 const app = $("#app");
 const toast = notify;
 function handleError(e) {
+  reportClientError(e);
   console.error(e?.code || e?.name || "Request failed");
   toast(e?.message || "เกิดข้อผิดพลาด กรุณาลองอีกครั้ง", true);
 }
@@ -223,6 +226,9 @@ function preparePage() {
       a.setAttribute("href", pageURL(a.getAttribute("href").slice(1))),
     );
   createIcons({ icons });
+  mountCaptcha();
+  updatePaymentCountdown();
+  refreshOwnerAlerts();
   const icon = document.querySelector('link[rel="icon"]');
   if (icon) {
     icon.removeAttribute("type");
@@ -265,7 +271,7 @@ function header() {
   const account = session
     ? `<a class="user-chip" href="/account/index.html" aria-label="บัญชี ${esc(profile?.username || session.user.email)}">${i("UserRound")}<span>@${esc(profile?.username || session.user.email)}</span></a><button type="button" class="logout-btn" data-action="logout">${i("LogOut")}<span>ออกจากระบบ</span></button>`
     : `<a class="btn secondary login-link" href="/auth/login.html">${i("UserRound")} เข้าสู่ระบบ</a>`;
-  return `<a class="skip-link" href="#main-content">ข้ามไปเนื้อหาหลัก</a><header class="${managing ? "admin-header" : ""}"><div class="header-inner">${brand()}${managing ? '<span class="workspace-tag">ระบบจัดการร้านค้า</span>' : `<nav id="main-nav" aria-label="เมนูหลัก"><a class="${r === "/" ? "active" : ""}" href="/index.html">หน้าหลัก</a><a class="${r === "/shop" ? "active" : ""}" href="/shop/index.html">สินค้า</a><a class="${r === "/orders" ? "active" : ""}" href="/account/orders.html">คำสั่งซื้อ</a><a class="${r === "/contact" ? "active" : ""}" href="/pages/contact.html">ช่องทางการติดต่อ</a></nav>`}<div class="header-actions">${!managing ? `<a class="cart-link" href="/shop/cart.html" aria-label="ตะกร้าสินค้า">${i("ShoppingBag")}<b data-cart-count>${count()}</b></a>` : ""}<div class="session-controls">${admin && !managing ? `<a href="/admin/dashboard.html" class="icon-btn dashboard-link" aria-label="แดชบอร์ดร้านค้า">${i("LayoutGrid")}</a>` : ""}${managing ? (session ? `<span class="owner-identity">${esc(profile?.username || "เจ้าของร้าน")}</span><a class="btn secondary" href="/index.html">ดูหน้าร้าน ${i("ArrowUpRight")}</a><button class="logout-btn" data-action="logout">${i("LogOut")}<span>ออกจากระบบ</span></button>` : `<a class="edition-text-link" href="/index.html">กลับหน้าร้าน</a>`) : account}</div>${!managing ? `<button class="icon-btn mobile-menu" data-action="menu" aria-label="เปิดเมนู" aria-controls="main-nav" aria-expanded="false">${i("Menu")}</button>` : ""}</div></div></header>${!db ? '<div class="demo-banner">ยังไม่ได้เชื่อมต่อฐานข้อมูล — ไม่สามารถเข้าสู่ระบบหรือสั่งซื้อได้</div>' : ""}`;
+  return `<a class="skip-link" href="#main-content">ข้ามไปเนื้อหาหลัก</a><header class="${managing ? "admin-header" : ""}"><div class="header-inner">${brand()}${managing ? '<span class="workspace-tag">ระบบจัดการร้านค้า</span>' : `<nav id="main-nav" aria-label="เมนูหลัก"><a class="${r === "/" ? "active" : ""}" href="/index.html">หน้าหลัก</a><a class="${r === "/shop" ? "active" : ""}" href="/shop/index.html">สินค้า</a><a class="${r === "/orders" ? "active" : ""}" href="/account/orders.html">คำสั่งซื้อ</a><a class="${r === "/contact" ? "active" : ""}" href="/pages/contact.html">ช่องทางการติดต่อ</a></nav>`}<div class="header-actions">${!managing ? `<a class="cart-link" href="/shop/cart.html" aria-label="ตะกร้าสินค้า">${i("ShoppingBag")}<b data-cart-count>${count()}</b></a>` : ""}<div class="session-controls">${admin && !managing ? `<a href="/admin/dashboard.html" class="icon-btn dashboard-link" aria-label="แดชบอร์ดร้านค้า">${i("LayoutGrid")}</a>` : ""}${managing ? (session ? `${admin ? `<a class="notification-link" href="/admin/operations.html" aria-label="แจ้งเตือนร้าน">${i("Mail")} แจ้งเตือน <b data-owner-alert-count>0</b></a>` : ""}<span class="owner-identity">${esc(profile?.username || "เจ้าของร้าน")}</span><a class="btn secondary" href="/index.html">ดูหน้าร้าน ${i("ArrowUpRight")}</a><button class="logout-btn" data-action="logout">${i("LogOut")}<span>ออกจากระบบ</span></button>` : `<a class="edition-text-link" href="/index.html">กลับหน้าร้าน</a>`) : account}</div>${!managing ? `<button class="icon-btn mobile-menu" data-action="menu" aria-label="เปิดเมนู" aria-controls="main-nav" aria-expanded="false">${i("Menu")}</button>` : ""}</div></div></header>${!db ? '<div class="demo-banner">ยังไม่ได้เชื่อมต่อฐานข้อมูล — ไม่สามารถเข้าสู่ระบบหรือสั่งซื้อได้</div>' : ""}`;
 }
 const empty = (title, text, link = "/shop", label = "เลือกชมสินค้า") =>
   `<div class="empty">${i("ShoppingBag")}<h2>${title}</h2><p>${text}</p><a class="btn primary" href="#${link}">${label} ${i("ArrowRight")}</a></div>`;
@@ -386,6 +392,9 @@ async function render() {
     else if (r === "/admin/login") {
       const { ownerLogin } = await import("./pages/admin/login.js");
       content = ownerLogin(pageContext());
+    } else if (r === "/admin/operations") {
+      const { operationsPage } = await import("./pages/admin/operations.js");
+      content = admin ? await operationsPage(pageContext()) : await adminPage();
     } else if (r.startsWith("/admin/order/"))
       content = admin ? await orderPage(r.split("/")[3]) : await adminPage();
     else if (r === "/register") content = authPage(true);
@@ -420,6 +429,7 @@ async function render() {
     document.title = `${$("main h1")?.textContent || "ร้านค้าออนไลน์"} | ${store.shop_name}`;
   } catch (e) {
     if (version !== routeVersion) return;
+    reportClientError(e);
     app.innerHTML =
       header() +
       empty("ไม่สามารถโหลดข้อมูลได้", esc(e.message || "กรุณาลองอีกครั้ง"));
@@ -555,12 +565,39 @@ document.addEventListener("click", async (e) => {
     main?.focus();
     return;
   }
+  const notification = e.target.closest("[data-read-notification]");
+  if (
+    notification &&
+    !e.ctrlKey &&
+    !e.metaKey &&
+    !e.shiftKey &&
+    !e.altKey &&
+    e.button === 0
+  ) {
+    e.preventDefault();
+    try {
+      if (!admin) throw Error("สำหรับเจ้าของร้านเท่านั้น");
+      const { error } = await db.rpc("mark_owner_notification", {
+        p_id: notification.dataset.readNotification,
+      });
+      if (error) throw error;
+      location.href = notification.href;
+    } catch (error) {
+      handleError(error);
+    }
+    return;
+  }
   const button = e.target.closest("[data-action]");
   if (!button) return;
   const action = button.dataset.action,
     id = button.dataset.id;
   try {
-    if (action === "edit-address") {
+    if (action === "read-notifications") {
+      if (!admin) throw Error("สำหรับเจ้าของร้านเท่านั้น");
+      const { error } = await db.rpc("mark_owner_notification", { p_id: null });
+      if (error) throw error;
+      await render();
+    } else if (action === "edit-address") {
       if (!session) throw Error("กรุณาเข้าสู่ระบบ");
       addressModal(id);
     } else if (action === "delete-address") {
@@ -950,12 +987,42 @@ document.addEventListener("submit", async (e) => {
       toast(
         "ส่งคำขอเปลี่ยนอีเมลแล้ว โปรดยืนยันจากอีเมลที่ระบบส่งให้ อีเมลเดิมจะยังใช้จนกว่าการยืนยันเสร็จ",
       );
+    } else if (form.id === "backup-form") {
+      if (!admin) throw Error("สำหรับเจ้าของร้านเท่านั้น");
+      if (data.backup_password !== data.backup_confirm)
+        throw Error("รหัสเข้ารหัสไม่ตรงกัน");
+      if (
+        !(await confirmAction(
+          "สำเนามีข้อมูลลูกค้าและการรับเงิน จะเข้ารหัสในเบราว์เซอร์ก่อนดาวน์โหลด เก็บรหัสแยกจากไฟล์ และอย่าอัปโหลดไฟล์นี้ขึ้น GitHub",
+          { title: "สำรองข้อมูลส่วนตัวของร้าน" },
+        ))
+      )
+        return;
+      const { data: backup, error } = await db.rpc("get_admin_backup");
+      if (error) throw error;
+      const encrypted = await encryptBackup(backup, data.backup_password);
+      const url = URL.createObjectURL(
+        new Blob([JSON.stringify(encrypted)], { type: "application/json" }),
+      );
+      const a = document.createElement("a");
+      a.href = url;
+      a.download =
+        "zenmarket-" +
+        new Date().toISOString().slice(0, 10) +
+        ".zenbackup.json";
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      form.reset();
+      toast(
+        "ดาวน์โหลดสำเนาเข้ารหัสแล้ว กรุณาเก็บไว้นอกเครื่องและทดสอบเปิดไฟล์ด้วยรหัสที่ตั้งไว้",
+      );
     } else if (form.id === "register-form") {
       checkPassword(data);
       const { error } = await db.auth.signUp({
         email: data.email.trim(),
         password: data.password,
         options: {
+          captchaToken: captchaToken(form),
           emailRedirectTo: location.origin + "/account/index.html",
           data: {
             first_name: data.first_name.trim(),
@@ -981,7 +1048,11 @@ document.addEventListener("submit", async (e) => {
       const { data: result, error } = await db.functions.invoke(
         "username-login",
         {
-          body: { identifier: data.identifier.trim(), password: data.password },
+          body: {
+            identifier: data.identifier.trim(),
+            password: data.password,
+            captchaToken: captchaToken(form),
+          },
         },
       );
       if (error) {
@@ -1209,6 +1280,7 @@ document.addEventListener("submit", async (e) => {
       go("/account", "เปลี่ยนรหัสผ่านเรียบร้อยแล้ว");
     }
   } catch (err) {
+    if (["login-form", "register-form"].includes(form.id)) resetCaptcha(form);
     if (errorBox)
       errorBox.textContent = err.message || "เกิดข้อผิดพลาด กรุณาลองอีกครั้ง";
     handleError(err);
@@ -1346,3 +1418,121 @@ window.addEventListener("focus", refreshVisibleInventory);
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") refreshVisibleInventory();
 });
+
+// These refresh only small status nodes: never replace a draft form.
+let alertsBusy = false,
+  alertsInitialized = false,
+  lastAlertId = null;
+async function refreshOwnerAlerts() {
+  if (
+    alertsBusy ||
+    loading ||
+    !db ||
+    !admin ||
+    !session ||
+    !route().startsWith("/admin/") ||
+    document.visibilityState !== "visible"
+  )
+    return;
+  alertsBusy = true;
+  try {
+    const { data, count, error } = await db
+      .from("owner_notifications")
+      .select("id,kind", { count: "exact" })
+      .is("seen_at", null)
+      .order("created_at", { ascending: false })
+      .limit(1);
+    if (error) throw error;
+    document
+      .querySelectorAll("[data-owner-alert-count]")
+      .forEach((el) => (el.textContent = count || 0));
+    const latest = data?.[0];
+    if (
+      alertsInitialized &&
+      latest &&
+      latest.id !== lastAlertId &&
+      !document.querySelector("dialog[open]")
+    )
+      toast(
+        latest.kind === "new_slip"
+          ? "มีสลิปใหม่รอตรวจ ดูได้ที่ศูนย์แจ้งเตือนร้าน"
+          : "มีคำสั่งซื้อใหม่ ดูได้ที่ศูนย์แจ้งเตือนร้าน",
+      );
+    lastAlertId = latest?.id || null;
+    alertsInitialized = true;
+  } catch {
+    document
+      .querySelectorAll("[data-owner-alert-count]")
+      .forEach((el) => (el.textContent = "–"));
+  } finally {
+    alertsBusy = false;
+  }
+}
+function updatePaymentCountdown() {
+  const notice = document.querySelector("[data-payment-due]");
+  if (!notice) return;
+  const seconds = Math.max(
+    0,
+    Math.ceil(
+      (new Date(notice.dataset.paymentDue).getTime() - Date.now()) / 1000,
+    ),
+  );
+  const target = notice.querySelector("[data-payment-countdown]");
+  if (target)
+    target.textContent = seconds
+      ? Math.floor(seconds / 60) + ":" + String(seconds % 60).padStart(2, "0")
+      : "00:00";
+  if (!seconds) {
+    const label = notice.querySelector("[data-deadline-label]");
+    if (label) label.textContent = "หมดเวลาชำระเงินแล้ว";
+    const payment = document.querySelector("[data-expiring-payment]");
+    if (payment && !payment.dataset.closed) {
+      payment.dataset.closed = "true";
+      payment.innerHTML =
+        '<h2>หมดเวลาชำระเงิน</h2><p>กรุณาอย่าโอนเงิน หากโอนแล้วให้ติดต่อร้านพร้อมหลักฐาน ไม่ต้องสร้างรายการใหม่หรือชำระซ้ำ</p><a class="btn secondary" href="/pages/contact.html">ติดต่อร้าน</a>';
+    }
+  }
+}
+let lastErrorSent = 0;
+function reportClientError(error) {
+  if (!db || !session || Date.now() - lastErrorSent < 60000) return;
+  lastErrorSent = Date.now();
+  const r = route(),
+    area = r.startsWith("/admin")
+      ? "admin"
+      : r === "/checkout" || r.startsWith("/order/")
+        ? "checkout"
+        : r === "/account"
+          ? "account"
+          : r === "/login" || r === "/register"
+            ? "auth"
+            : r === "/shop" || r.startsWith("/product/")
+              ? "catalogue"
+              : "other";
+  const raw = String(error?.code || error?.name || "");
+  const code =
+    raw === "UI"
+      ? "UI"
+      : raw === "TypeError"
+        ? "NETWORK"
+        : raw === "42501"
+          ? "PERMISSION"
+          : /^\d{5}$/.test(raw) || raw.startsWith("PGRST")
+            ? "DATABASE"
+            : raw.includes("Storage")
+              ? "STORAGE"
+              : raw.includes("Auth")
+                ? "AUTH"
+                : "UNKNOWN";
+  db.rpc("report_client_error", { p_area: area, p_code: code }).then(
+    () => {},
+    () => {},
+  );
+}
+window.addEventListener("error", () => reportClientError({ code: "UI" }));
+window.addEventListener("unhandledrejection", () =>
+  reportClientError({ code: "UI" }),
+);
+setInterval(updatePaymentCountdown, 1000);
+setInterval(refreshOwnerAlerts, 30000);
+window.addEventListener("focus", refreshOwnerAlerts);

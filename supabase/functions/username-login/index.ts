@@ -5,8 +5,8 @@ Deno.serve(async req => {
  const reply = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers });
  if(req.method !== 'POST') return reply({error:'Method not allowed'},405);
  try {
-  const {identifier,password} = await req.json();
-  if(typeof identifier !== 'string'||typeof password !== 'string'||identifier.length>254||password.length>128) return reply({error:'ข้อมูลไม่ถูกต้อง'},400);
+  const {identifier,password,captchaToken} = await req.json();
+  if(typeof identifier !== 'string'||typeof password !== 'string'||identifier.length>254||password.length>128||(captchaToken!==undefined&&(typeof captchaToken!=='string'||captchaToken.length>2048))) return reply({error:'ข้อมูลไม่ถูกต้อง'},400);
   const admin = createClient(Deno.env.get('SUPABASE_URL')!,Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
   const digest = async (s:string) => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s)))).map(v=>v.toString(16).padStart(2,'0')).join('');
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
@@ -20,7 +20,7 @@ Deno.serve(async req => {
    email = data || 'unknown-account@invalid.example';
   }
   const auth = createClient(Deno.env.get('SUPABASE_URL')!,Deno.env.get('SUPABASE_ANON_KEY')!,{auth:{persistSession:false}});
-  const {data,error} = await auth.auth.signInWithPassword({email,password});
+  const {data,error} = await auth.auth.signInWithPassword({email,password,options:{captchaToken:typeof captchaToken==='string'?captchaToken:undefined}});
   if(error||!data.session) return reply({error:'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง หรือยังไม่ได้ยืนยันอีเมล'},401);
   return reply({session:data.session});
  } catch { return reply({error:'ไม่สามารถเข้าสู่ระบบได้'},400); }

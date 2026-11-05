@@ -2,7 +2,7 @@
 
 The owner explicitly requested removal of the `tests/` directory from GitHub. Validation was performed **before removing the suites**, then testing-only dependencies and npm test commands were removed as well. This repository intentionally does not retain an automated test harness; future changes need independent checks. Deleting tracked files does not erase earlier Git history.
 
-## Checks for this revision
+## Prior structure/review revision (329da45)
 
 - 18 unit checks passed: previous PromptPay/cart/validation/routing protections plus 4–5-star homepage filtering, review escaping, honest empty/error states and separate owner order routes.
 - Clean migrations 001–007 and five rollback suites passed on embedded PostgreSQL, including previous customer/address/shipping security coverage and the new public review projection. Embedded Auth/Storage are schema stubs, not real services.
@@ -28,3 +28,12 @@ Live baseline at the beginning of **this** revision: 0 products, 0 orders, 3 pro
 ## Boundaries
 
 Browser APIs were mocked; real Auth/email/HTTP Storage/bank/carrier E2E is not certified. This network-restricted workspace cannot fetch production pages directly, so production alias validation uses the Vercel control plane. Responsive testing is Chromium emulation, not physical iOS/Safari/Firefox coverage. Custom SMTP was not configured at the time of inspection. Password rotation and a real owner email remain necessary; no password was changed without owner consent.
+
+## Operations + dark homepage revision
+
+- Fresh embedded PostgreSQL applied 001–008 and 010; operations rollback assertions passed. pg_cron is not emulated there.
+- Live isolated ZenMarket: applied 008–010 additively, then ran rollback assertions for authoritative 30-minute deadlines, idempotency, exact-once expiry/restock, late slip denial, protected review orders, private durable order/slip notifications, mark-read persistence, customer/anonymous RPC denial, no direct telemetry insert, telemetry throttling, encrypted-export RPC authorization, internal checkout revocation, order rate limits including cancelled orders.
+- Verified actual pg_cron job active (`* * * * *`), run status `succeeded` and advancing operation heartbeat. Live post-fixture counts: 0 products, 0 orders, 3 profiles, 0 notifications/errors. No fixtures retained.
+- Chromium + mocked APIs: dark homepage palette, absent empty reviews, only 4–5-star reviews with escaped HTML; countdown removes QR and slip form; customer denied owner backup UI; notifications/mark-read; real browser WebCrypto encrypted download; error payload has no raw message. 27 document paths × widths 320/390/768/1440: no horizontal overflow or uncaught page errors. Mock session/fixture screenshots are validation only, never persisted to the application database.
+- Node WebCrypto round-trip and corruption rejection passed; exported JSON contains no plaintext fixture data. Source no-undef scan, build (27 HTML outputs), and diff whitespace check passed. Browser check rerun after alert/notification refinements.
+- Turnstile keys/server enforcement and scheduled database-backup secrets not configured. Live follow-up also verified that late-slip rejection is specifically the deadline error even when object metadata exists, and that the daily cap independently rejects the 21st order with only one order inside the 15-minute window. Updated username-login Edge Function version 2 is ACTIVE with optional captchaToken forwarding; real HTTP Auth is not certified. No real automatic backup or restore drill certified. Manual export is encrypted application data, not a full Auth/Storage recovery solution. See OPERATIONS.md.
