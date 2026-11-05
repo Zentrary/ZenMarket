@@ -33,14 +33,14 @@
 - `tests/security.sql`: anonymous/private-data isolation, privilege escalation prevention, server prices/stock/idempotency/null-cart/cancellation.
 - `tests/customization.sql`: public/private settings separation, admin-only category/settings mutations, FK/cascade/restrict and custom shipping.
 - `tests/member-experience.sql`: catalogue membership, social settings, private review order-ID protection, dashboard owner-only access, delivered-purchase/identity checks, timestamped receipt transitions, rating/comment limits, review upsert and cross-user isolation, deletion/history and authoritative sales totals.
-- Live checks use postgres transaction fixtures and **ROLLBACK**, never live orders or real product deletion. Migration changes are intentionally persistent; test data/settings are not. Production rollout status and final live results are recorded in the pull-request verification comment.
+- Live checks use postgres transaction fixtures and **ROLLBACK**, never live orders or real product deletion. Migration changes are intentionally persistent; test data/settings are not. Migrations 004/005 and all three live rollback suites passed; final counts were 1 product, 0 orders, 0 reviews, 1 admin, 0 test products, and anonymous catalogue SELECT denied. Deployment identifiers are recorded in the pull-request verification comment.
 
 ## Boundaries / launch requirements
 
 - UI API requests are mocked. Real browser → Supabase Auth/Edge login, email confirmation/recovery, Storage upload and bank/carrier integrations are not certified end-to-end from this network-restricted sandbox.
 - Custom SMTP was previously unset. Configure and verify real confirmation email before opening mandatory registration to the public. Do not disable email verification silently to bypass this requirement.
 - Physical iPhone/Safari, Android/Chrome and Firefox have not been tested. Responsive checks are Chromium emulation, not all-device certification.
-- Replace `.example` test accounts with real owner-controlled email and rotate privately delivered passwords. No working passwords or service keys published.
+- Replace `.example` test accounts with real owner-controlled email and rotate privately delivered passwords. This revision adds no working passwords or service keys. An upstream README contained an apparent live admin credential: the merged working tree retains non-secret guidance instead; rotate any previously committed password, because deletion does not remove Git history. Password was not changed without owner approval.
 - Validate the real PromptPay account with the bank; no test money transferred. Manual bank verification, retention/returns/contact policies, CAPTCHA, monitoring/backups, stronger server Auth password minimum and a security review remain launch considerations.
 - Product images remain public Storage URLs and historical image files are retained intentionally; membership gating is not image DRM. Uploaded orphan-file cleanup is not automated.
 - No automatic delivery detection, stock expiry, refunds, profit accounting, review moderation or claim of comprehensive security coverage.
