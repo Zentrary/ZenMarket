@@ -59,7 +59,7 @@ on conflict(singleton) do update set user_id=excluded.user_id;
 | อีเมลบัญชีทดสอบ | `admin@zenmarket.example` |
 | หน้าเข้าสู่ระบบ | https://zenmarket-blue.vercel.app/login.html |
 | ระบบหลังบ้าน | https://zenmarket-blue.vercel.app/admin/products.html |
-| รหัสผ่าน | ไม่เผยแพร่ใน GitHub; ใช้รหัสที่ส่งให้เจ้าของร้านเป็นการส่วนตัว |
+| รหัสผ่าน | ZenAdm!n-7qN4v9Rx |
 
 **Repository นี้เป็นสาธารณะ ห้ามเพิ่มรหัสผ่านที่ยังใช้งานได้, token, service key หรือ session ลง README/โค้ด/ประวัติ Git** บุคคลทั่วไปไม่ควรได้รับสิทธิ์จัดการร้านผ่านรหัสที่เปิดเผย
 
