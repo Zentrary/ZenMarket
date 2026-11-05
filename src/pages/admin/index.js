@@ -1,4 +1,4 @@
-import { reviewColumns } from "../experience.js";
+import { reviewColumns } from "../../core/experience.js";
 export function createAdminPages(context) {
   const {
     products,
@@ -143,7 +143,7 @@ export function createAdminPages(context) {
         .order("created_at", { ascending: false })
         .limit(100);
       if (error) throw error;
-      content = `<section class="panel"><h2>คำสั่งซื้อล่าสุด (${data.length})</h2><p class="muted">แสดงล่าสุด 100 รายการ ตรวจยอดเข้าธนาคารก่อนอนุมัติ</p>${data.length ? `<div class="table-scroll"><table><thead><tr><th>คำสั่งซื้อ</th><th>ผู้รับ</th><th>ยอดรวม</th><th>สถานะ</th><th></th></tr></thead><tbody>${data.map((o) => `<tr><td>#${o.id.slice(0, 8).toUpperCase()}<small>${date(o.created_at)}</small></td><td>${esc(o.recipient)}</td><td>${money(o.total)}</td><td><span class="status ${o.status}">${statusLabel[o.status]}</span></td><td><a class="btn secondary small" href="#/order/${o.id}">ตรวจสอบ ${i("ArrowRight")}</a></td></tr>`).join("")}</tbody></table></div>` : '<div class="table-empty">ยังไม่มีคำสั่งซื้อ</div>'}</section>`;
+      content = `<section class="panel"><h2>คำสั่งซื้อล่าสุด (${data.length})</h2><p class="muted">แสดงล่าสุด 100 รายการ ตรวจยอดเข้าธนาคารก่อนอนุมัติ</p>${data.length ? `<div class="table-scroll"><table><thead><tr><th>คำสั่งซื้อ</th><th>ผู้รับ</th><th>ยอดรวม</th><th>สถานะ</th><th></th></tr></thead><tbody>${data.map((o) => `<tr><td>#${o.id.slice(0, 8).toUpperCase()}<small>${date(o.created_at)}</small></td><td>${esc(o.recipient)}</td><td>${money(o.total)}</td><td><span class="status ${o.status}">${statusLabel[o.status]}</span></td><td><a class="btn secondary small" href="/admin/order.html?id=${o.id}">ตรวจสอบ ${i("ArrowRight")}</a></td></tr>`).join("")}</tbody></table></div>` : '<div class="table-empty">ยังไม่มีคำสั่งซื้อ</div>'}</section>`;
     }
     const selected = tabs.find((t) => t[0] === tab);
     return `<main class="workspace" id="main-content"><aside class="workspace-sidebar"><span class="sidebar-label">จัดการร้านค้า</span><nav aria-label="เมนูหลังบ้าน">${tabs.map(([id, icon, label]) => `<a href="/admin/${id}.html" class="${tab === id ? "selected" : ""}" ${tab === id ? 'aria-current="page"' : ""}>${i(icon)} ${label}</a>`).join("")}</nav><a class="back-link" href="/index.html">${i("ArrowLeft")} กลับหน้าร้าน</a></aside><section class="workspace-content">${pageHead("STORE MANAGEMENT", selected[2], selected[3])}${content}</section></main>`;

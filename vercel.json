@@ -29,5 +29,87 @@
         }
       ]
     }
+  ],
+  "redirects": [
+    {
+      "source": "/shop.html",
+      "destination": "/shop/index.html",
+      "permanent": true
+    },
+    {
+      "source": "/product.html",
+      "destination": "/shop/product.html",
+      "permanent": true
+    },
+    {
+      "source": "/categories.html",
+      "destination": "/shop/categories.html",
+      "permanent": true
+    },
+    {
+      "source": "/cart.html",
+      "destination": "/shop/cart.html",
+      "permanent": true
+    },
+    {
+      "source": "/checkout.html",
+      "destination": "/shop/checkout.html",
+      "permanent": true
+    },
+    {
+      "source": "/account.html",
+      "destination": "/account/index.html",
+      "permanent": true
+    },
+    {
+      "source": "/orders.html",
+      "destination": "/account/orders.html",
+      "permanent": true
+    },
+    {
+      "source": "/order.html",
+      "destination": "/account/order.html",
+      "permanent": true
+    },
+    {
+      "source": "/favorites.html",
+      "destination": "/account/favorites.html",
+      "permanent": true
+    },
+    {
+      "source": "/login.html",
+      "destination": "/auth/login.html",
+      "permanent": true
+    },
+    {
+      "source": "/register.html",
+      "destination": "/auth/register.html",
+      "permanent": true
+    },
+    {
+      "source": "/reset-password.html",
+      "destination": "/auth/reset-password.html",
+      "permanent": true
+    },
+    {
+      "source": "/about.html",
+      "destination": "/pages/about.html",
+      "permanent": true
+    },
+    {
+      "source": "/help.html",
+      "destination": "/pages/help.html",
+      "permanent": true
+    },
+    {
+      "source": "/privacy.html",
+      "destination": "/pages/privacy.html",
+      "permanent": true
+    },
+    {
+      "source": "/contact.html",
+      "destination": "/pages/contact.html",
+      "permanent": true
+    }
   ]
 }
