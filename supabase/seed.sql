@@ -1,2 +1,4 @@
--- Intentionally empty: the owner adds all products through the admin page.
--- Do not insert demo products in production or on application startup.
+-- Intentionally no automatic accounts or demo products.
+-- For a new deployment, create and confirm an account through the app, then
+-- follow docs/DEPLOYMENT.md and run admin-bootstrap.sql manually in SQL Editor.
+-- An automatic seed must never choose or replace a production owner.
