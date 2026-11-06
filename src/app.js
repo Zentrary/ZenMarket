@@ -439,9 +439,13 @@ async function render() {
     } else if (r === "/admin/operations") {
       const { operationsPage } = await import("./pages/admin/operations.js");
       content = admin ? await operationsPage(pageContext()) : await adminPage();
-    } else if (r.startsWith("/admin/order/"))
-      content = admin ? await orderPage(r.split("/")[3]) : await adminPage();
-    else if (r === "/register") content = authPage(true);
+    } else if (r.startsWith("/admin/order/")) {
+      if (admin) {
+        const { adminSidebar } = await import("./pages/admin/navigation.js");
+        const detail = await orderPage(r.split("/")[3]);
+        content = `<main class="workspace" id="main-content">${adminSidebar(i, "orders")}<div class="workspace-content admin-order-detail">${detail.replace(/^<main class="wrap subpage">/, '<div class="subpage">').replace(/<\/main>$/, "</div>")}</div></main>`;
+      } else content = await adminPage();
+    } else if (r === "/register") content = authPage(true);
     else if (r === "/account") content = accountPage();
     else if (r === "/orders") content = await ordersPage();
     else if (r.startsWith("/order/"))

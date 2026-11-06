@@ -87,3 +87,10 @@ Browser APIs were mocked; real Auth/email/HTTP Storage/bank/carrier E2E is not c
 - Added a visible guest-only **สมัครสมาชิก** header button next to Login, linked to the existing `/auth/register.html` page. Signed-in account/logout and owner controls are unchanged. Compact mobile action spacing keeps both buttons visible with the menu toggle. No signup/Auth behavior or database changes.
 - Clean npm ci: 0 audit vulnerabilities. Production build (27 HTML pages), both modified JS syntax checks and git diff whitespace check PASS.
 - External Chromium checks on the built bundle with mocked Supabase APIs PASS: guest uploaded/fallback logo has a single header identity and none in hero; visible 44px-minimum Login/Signup buttons and no horizontal overflow at 320/360/390/650/768/1024/1440/1920px; mobile menu open/Escape; actual Signup-to-registration-form and Login-to-login-form navigation; public Contact retains Signup; no guest product fetch; member account/logout remains and signup/login buttons are absent; no uncaught page errors. Desktop/mobile screenshots inspected. No account created or form submitted; not real Auth signup E2E certification. Validation stays outside Git.
+
+## Owner bootstrap, navigation and homepage refresh
+
+- Added a manual owner bootstrap that assigns an existing confirmed account with a profile and refuses to replace a different owner. It is not run automatically, does not create Auth users or passwords, and is documented for privileged SQL Editor use.
+- Unified owner navigation across dashboard, operations and owner order detail; added dashboard shortcuts and settings section links. Removed the homepage category section and refreshed the hero.
+- Clean npm ci and Vite production build passed. Node renderer smoke checks covered guest/member homepage, removal of the category section, escaping, shared navigation, operations, settings and dashboard shortcuts. Git diff whitespace check passed.
+- The bootstrap was not run against a database; real signup/email, owner authorization, payment and browser/device flows still require testing in an isolated project. No live data or provider configuration was changed.

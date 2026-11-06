@@ -871,3 +871,109 @@ body[data-space="admin"] .workspace-tag {
     display: none;
   }
 }
+
+/* Storefront hero: a quieter, more distinctive welcome without invented products. */
+.home-hero {
+  position: relative;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr);
+  gap: clamp(36px, 6vw, 80px);
+  padding: clamp(32px, 5vw, 70px);
+  margin-bottom: 36px;
+  border: 1px solid #363636;
+  border-radius: 20px;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 5% 0%, #292929 0%, transparent 48%), #171717;
+}
+.home-intro { position: relative; z-index: 1; }
+.home-welcome {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid #494949;
+  border-radius: 999px;
+  padding: 8px 13px;
+  color: #d1d1d1;
+}
+.home-welcome > span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #d5d5d5;
+}
+.home-intro h1 {
+  margin: 22px 0 18px;
+  font-size: clamp(38px, 4.5vw, 62px);
+  line-height: 1.4;
+  letter-spacing: -1.8px;
+}
+.home-description { line-height: 1.9; color: #c2c2c2; }
+.home-actions { margin-top: 32px; }
+.home-actions .btn { min-height: 52px; padding-inline: 24px; }
+.home-hero-note { font-size: 11px; }
+.home-order-guide {
+  background: linear-gradient(145deg, #282828, #1b1b1b 70%);
+  border-color: #484848;
+  border-radius: 16px;
+  box-shadow: 0 20px 45px #00000040;
+}
+.home-guide-top { align-items: center; padding-bottom: 18px; }
+.home-guide-icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid #555555;
+  border-radius: 12px;
+}
+.home-guide-icon svg { width: 20px; height: 20px; }
+.home-guide-title h2 { font-size: clamp(24px, 2.5vw, 32px); line-height: 1.5; }
+.home-guide-title h2 span { color: #ababab; }
+.home-guide-number { background: #303030; border-color: #505050; }
+.home-guide-contact { border-radius: 0 0 16px 16px; }
+
+/* Consistent navigation and clear, direct actions across the owner workspace. */
+body[data-space="admin"] .workspace-sidebar nav a:hover { background: #262626; color: #ffffff; }
+.admin-shortcuts {
+  padding: 24px;
+  margin-bottom: 22px;
+  border: 1px solid #3b3b3b;
+  border-radius: 8px;
+  background: #202020;
+}
+.admin-shortcuts h2 { margin: 5px 0; font-size: 20px; }
+.admin-shortcuts p { margin: 0; color: #bcbcbc; font-size: 12px; }
+.admin-shortcut-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 10px;
+  margin-top: 20px;
+}
+.admin-shortcut {
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 15px;
+  border: 1px solid #444444;
+  border-radius: 6px;
+  background: #191919;
+}
+.admin-shortcut:hover { background: #303030; border-color: #777777; }
+.admin-shortcut > svg { flex: 0 0 19px; width: 19px; height: 19px; color: #cccccc; }
+.admin-shortcut > svg:last-child { margin-left: auto; width: 15px; height: 15px; flex-basis: 15px; }
+.admin-shortcut span { min-width: 0; }
+.admin-shortcut strong, .admin-shortcut small { display: block; }
+.admin-shortcut strong { font-size: 12px; }
+.admin-shortcut small { margin-top: 5px; color: #bcbcbc; font-size: 10px; line-height: 1.6; }
+.settings-jump { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.settings-jump a { display: inline-flex; align-items: center; min-height: 44px; padding: 9px 14px; border: 1px solid #444444; border-radius: 5px; color: #dddddd; font-size: 12px; }
+.settings-jump a:hover { background: #303030; color: #ffffff; }
+.settings-sections section[id] { scroll-margin-top: 20px; }
+.admin-order-detail > .subpage { width: 100%; max-width: none; margin: 0; padding: 0; }
+@media (max-width: 700px) {
+  .home-hero { grid-template-columns: minmax(0, 1fr); gap: 30px; padding: 28px 22px; border-radius: 14px; }
+  .home-intro h1 { font-size: clamp(32px, 8vw, 48px); letter-spacing: -1px; }
+  .home-order-guide { padding: 20px 24px 0; }
+  .admin-shortcuts { padding: 18px; }
+  .admin-shortcut-grid { grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); }
+}
