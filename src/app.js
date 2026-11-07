@@ -556,10 +556,10 @@ async function refreshIdentity() {
   }
   if (!admin || route().startsWith("/admin/")) clearCustomerView();
 }
-function modal(content) {
+function modal(content, modifier = "") {
   document.querySelector("dialog.editor-dialog")?.close();
   const dialog = document.createElement("dialog");
-  dialog.className = "editor-dialog";
+  dialog.className = `editor-dialog ${modifier}`.trim();
   dialog.innerHTML = `<button class="modal-close icon-btn" data-action="close-modal" aria-label="ปิด">${i("X")}</button>${content}`;
   localizePage(dialog, language);
   document.body.append(dialog);
@@ -728,6 +728,15 @@ document.addEventListener("click", async (e) => {
         if (!copied) throw Error("คัดลอกเลขพัสดุไม่สำเร็จ กรุณาลองอีกครั้ง");
       }
       toast("คัดลอกเลขพัสดุแล้ว");
+    } else if (action === "view-payment-slip") {
+      const { data, error } = await db.storage
+        .from("payment-slips")
+        .createSignedUrl(button.dataset.path, 120);
+      if (error) throw error;
+      modal(
+        `<div class="payment-slip-viewer"><h2>สลิปการชำระเงิน</h2><img src="${esc(data.signedUrl)}" alt="สลิปการชำระเงินที่ลูกค้าแนบ"></div>`,
+        "payment-slip-dialog",
+      );
     } else if (action === "view-shipping-photo") {
       const { data, error } = await db.storage
         .from("shipping-updates")
@@ -920,7 +929,24 @@ document.addEventListener("click", async (e) => {
         `<h2>ลืมรหัสผ่าน?</h2><p>กรอกอีเมลที่ใช้สมัคร เราจะส่งลิงก์ตั้งรหัสผ่านใหม่ให้</p><form id="forgot-form">${field("อีเมล", "email", "email", 'autocomplete="email"')}<p class="form-error" role="alert"></p><button class="btn primary full" type="submit">ส่งลิงก์ตั้งรหัสผ่าน</button></form>`,
       );
     } else if (action === "change-password") go("/reset-password");
-    else if (["cancel-order", "approve-order"].includes(action)) {
+    else if (action === "confirm-preparation") {
+      if (!admin) throw Error("สำหรับเจ้าของร้านเท่านั้น");
+      if (
+        !(await confirmAction(
+          "ยืนยันว่าจัดสินค้าและแพ็กพัสดุเสร็จแล้ว พร้อมเตรียมส่งมอบให้ขนส่งใช่ไหม?",
+          { title: "ยืนยันเตรียมจัดส่งเสร็จ", accept: "เตรียมสินค้าเสร็จแล้ว" },
+        ))
+      )
+        return;
+      button.disabled = true;
+      const { error } = await db.rpc("transition_order", {
+        order_id: id,
+        next_status: "ready_to_ship",
+      });
+      if (error) throw error;
+      await render();
+      toast("ยืนยันเตรียมสินค้าเสร็จแล้ว กรอกเลขพัสดุก่อนกดยืนยันจัดส่ง");
+    } else if (["cancel-order", "approve-order"].includes(action)) {
       if (
         !(await confirmAction(
           action === "approve-order"
