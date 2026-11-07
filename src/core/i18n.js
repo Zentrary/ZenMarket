@@ -47,7 +47,7 @@ const en = {
   "ตั้งค่าการชำระเงิน PromptPay": "Configure PromptPay payments", "แจ้งเตือนและดูแลระบบ": "Alerts and system operations",
   "ออเดอร์ สลิป ปัญหา และสำรองข้อมูล": "Orders, payment slips, issues, and backups", "จัดการร้านค้า": "Manage store", "เมนูหลังบ้าน": "Admin menu",
   "เลือกงานที่ต้องการทำต่อได้ทันที": "Continue with a task", "QUICK ACCESS": "QUICK ACCESS",
-  "ยอดรับชำระรวม": "Total payments received", "คำสั่งซื้อที่ยืนยันยอดแล้ว": "orders with verified payment", "สินค้าที่ขายได้": "Items sold",
+  "ยอดรับชำระรวม": "Total payments received", "ยอดขายที่ชำระแล้ว": "Paid sales", "ยอดขายที่ชำระแล้ว 7 วันล่าสุด": "Paid sales in the last 7 days", "ยอดขายนี้รวมค่าจัดส่ง และนับเฉพาะออเดอร์ที่ชำระแล้ว ไม่ใช่กำไรสุทธิ": "Includes shipping and only paid orders; this is not net profit.", "คำสั่งซื้อที่ยืนยันยอดแล้ว": "orders with verified payment", "สินค้าที่ขายได้": "Items sold",
   "ชิ้น": "items", "รายการสินค้าในร้าน": "products in store", "คะแนนจากลูกค้า": "Customer rating", "รีวิวจากผู้ซื้อจริง": "verified reviews",
   "รอดำเนินการ": "Pending", "ตรวจยอด": "Verify payment", "รอจัดส่ง": "Awaiting shipment", "ยอดรับชำระ 7 วันล่าสุด": "Payments received in the last 7 days",
   "เวลาไทย · รายการเก่าที่ไม่มีวันยืนยันยอด อ้างอิงวันสั่งซื้อ": "Thailand time · Older records without a payment date use the order date",
@@ -90,7 +90,7 @@ const en = {
   "ไม่มีคำสั่งซื้อ": "No orders yet", "ไม่มีรีวิว": "No reviews yet", "ดูสินค้า": "View products", "ยืนยันรับสินค้า": "Confirm receipt",
   "เลือกดูรายละเอียด": "View details", "กลับ": "Back", "ถัดไป": "Next", "ก่อนหน้า": "Previous", "หน้า": "Page", "บันทึกการเปลี่ยนแปลง": "Save changes",
   "การจัดส่ง": "Shipping", "ข้อมูลบัญชี": "Account information", "ข้อมูลส่วนตัว": "Personal information", "ยืนยันอีเมล": "Verify email",
-  "เพิ่มสินค้า": "Add product", "แก้ไขสินค้า": "Edit product", "คลังสินค้า": "Product inventory", "หมวดหมู่ทั้งหมด": "All categories", "สถานะ": "Status", "จัดการ": "Actions",
+  "เพิ่มสินค้า": "Add product", "แก้ไขสินค้า": "Edit product", "คลังสินค้า": "Product inventory", "เลือกที่อยู่ที่บันทึกไว้ หรือกรอกข้อมูลสำหรับออเดอร์นี้": "Choose a saved address or enter details for this order.", "ยังไม่มีที่อยู่ในสมุดที่อยู่": "No saved addresses yet", "บันทึกที่อยู่ไว้เพื่อเลือกใช้ในคำสั่งซื้อนี้หรือครั้งถัดไป หรือกรอกข้อมูลด้านล่างได้เลย": "Save an address to use now or next time, or enter your details below.", "การเปลี่ยนที่อยู่ตรงนี้มีผลเฉพาะคำสั่งซื้อปัจจุบัน": "Changes here apply only to this order.", "บันทึกที่อยู่": "Save address", "เพิ่มที่อยู่": "Add address", "บ้านเลขที่ ถนน ตำบล/แขวง อำเภอ/เขต จังหวัด และรหัสไปรษณีย์": "House number, street, subdistrict, district, province, and postal code", "หมวดหมู่ทั้งหมด": "All categories", "สถานะ": "Status", "จัดการ": "Actions",
   "เปิดขาย": "Active", "ซ่อน": "Hidden", "ราคา: ": "Price: ", "คงเหลือ": "Stock", "บันทึกการตั้งค่า": "Save settings", "ตั้งค่าร้านค้า": "Store settings",
   "รายการแจ้งเตือน": "Notifications", "สำรองข้อมูล": "Back up data", "กำลังดำเนินการ": "In progress", "ไม่มีข้อมูล": "No data available",
 };

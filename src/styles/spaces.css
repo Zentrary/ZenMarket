@@ -936,3 +936,55 @@ body[data-space="admin"] .workspace-sidebar nav a:hover { background: #262626; c
   .operations-grid > .operations-card { animation: none !important; }
   .btn:hover, .product-card:hover, .operations-row:hover, .operations-row-link:hover { transform: none; }
 }
+
+/* Keep the landing order guide contained and its custom numbering aligned. */
+.home-hero {
+  grid-template-columns: minmax(0, 1.12fr) minmax(320px, .88fr);
+  gap: clamp(24px, 4vw, 58px);
+}
+.home-intro,
+.home-order-guide { min-width: 0; }
+.home-order-guide {
+  box-sizing: border-box;
+  width: 100%;
+  padding: clamp(22px, 3vw, 34px);
+  overflow: hidden;
+}
+.home-guide-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.home-guide-top > span:first-child { overflow-wrap: anywhere; }
+.home-guide-title { min-width: 0; padding: 22px 0 18px; }
+.home-guide-title h2 { overflow-wrap: anywhere; }
+.home-guide-list {
+  display: grid;
+  gap: 15px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.home-guide-list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  margin: 0;
+}
+.home-guide-list li > span:nth-child(2) {
+  min-width: 0;
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+.home-guide-list li > svg {
+  flex: 0 0 18px;
+  margin-left: auto;
+}
+.home-guide-number { flex: 0 0 34px; text-align: center; }
+@media (max-width: 700px) {
+  .home-hero { grid-template-columns: minmax(0, 1fr); }
+  .home-order-guide { padding: 22px; }
+}

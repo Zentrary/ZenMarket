@@ -82,7 +82,24 @@ export function createCheckoutPages(context) {
     if (!cart.length) return cartPage();
     const selected = addresses.find((a) => a.is_default);
     const delivery = checkoutRecipient(selected, profile);
-    return `<main class="wrap subpage">${pageHead("ONE STEP CLOSER TO YOUR JOY", "จัดส่งความสุขให้คุณ", "กรอกที่อยู่ แล้วชำระเงินด้วย QR PromptPay")}<div class="checkout-layout"><form id="checkout-form" class="panel"><h3>ข้อมูลจัดส่ง</h3><label class="field"><span>เลือกที่อยู่จัดส่ง</span><select id="saved-address" name="saved_address"><option value="" ${!selected ? "selected" : ""}>กรอกที่อยู่ใหม่ด้วยตัวเอง</option>${addresses.map((a) => `<option value="${a.id}" ${selected?.id === a.id ? "selected" : ""}>${esc(a.label)}${a.is_default ? " · ที่อยู่หลัก" : ""} — ${esc(a.recipient)}</option>`).join("")}</select></label><p class="muted">เลือกที่อยู่ที่บันทึกไว้ หรือกรอกเอง ปรับข้อมูลสำหรับคำสั่งซื้อนี้ได้โดยไม่เปลี่ยนสมุดที่อยู่</p><a class="address-manage-link" href="/account/index.html#address-book" target="_blank" rel="noopener">จัดการสมุดที่อยู่ ${i("ArrowUpRight")}</a>${field("ชื่อผู้รับ", "recipient", "text", 'minlength="2" maxlength="150" autocomplete="name"', delivery.recipient)}${field("เบอร์โทรศัพท์", "phone", "tel", 'pattern="0[0-9]{9}" autocomplete="tel"', delivery.phone)}<label class="field"><span>ที่อยู่จัดส่ง (บ้านเลขที่ ถนน ตำบล อำเภอ จังหวัด และรหัสไปรษณีย์)</span><textarea name="address" required minlength="20" maxlength="1200" rows="4" autocomplete="street-address" placeholder="กรุณากรอกที่อยู่ครบถ้วนเพื่อการจัดส่ง">${esc(delivery.address)}</textarea></label><div class="notice">${i("CreditCard")} ชำระผ่าน PromptPay หลังสร้างคำสั่งซื้อ กรุณาตรวจชื่อผู้รับเงินในแอปธนาคารทุกครั้ง</div><p class="form-error" role="alert"></p><button class="btn primary" type="submit">สร้างคำสั่งซื้อและรับ QR ${i("ArrowRight")}</button></form><aside class="summary-card" id="checkout-summary">${summary(true)}<p class="muted">ยอดสุดท้ายและสต็อกจะตรวจสอบจากฐานข้อมูลอีกครั้ง</p></aside></div></main>`;
+    return `<main class="wrap subpage checkout-page">${pageHead("ONE STEP CLOSER TO YOUR JOY", "จัดส่งความสุขให้คุณ", "กรอกที่อยู่ แล้วชำระเงินด้วย QR PromptPay")}
+      <div class="checkout-layout">
+        <form id="checkout-form" class="panel checkout-form">
+          <div class="checkout-form-heading"><span class="eyebrow">DELIVERY DETAILS</span><h2>ข้อมูลจัดส่ง</h2><p>เลือกที่อยู่ที่บันทึกไว้ หรือกรอกข้อมูลสำหรับออเดอร์นี้</p></div>
+          <div class="checkout-address-picker">
+            <label class="field"><span>เลือกที่อยู่จัดส่ง</span><select id="saved-address" name="saved_address"><option value="" ${!selected ? "selected" : ""}>กรอกที่อยู่ใหม่ด้วยตัวเอง</option>${addresses.map((a) => `<option value="${a.id}" ${selected?.id === a.id ? "selected" : ""}>${esc(a.label)}${a.is_default ? " · ที่อยู่หลัก" : ""} — ${esc(a.recipient)}</option>`).join("")}</select></label>
+            <button type="button" class="btn secondary checkout-address-add" data-action="edit-address" ${addresses.length >= 5 ? "disabled" : ""}>${i("Plus")} ${addresses.length ? "เพิ่มที่อยู่" : "บันทึกที่อยู่"}</button>
+          </div>
+          ${addresses.length ? '<p class="checkout-address-help">การเปลี่ยนที่อยู่ตรงนี้มีผลเฉพาะคำสั่งซื้อปัจจุบัน</p>' : '<div class="checkout-address-empty"><strong>ยังไม่มีที่อยู่ในสมุดที่อยู่</strong><span>บันทึกที่อยู่ไว้เพื่อเลือกใช้ในคำสั่งซื้อนี้หรือครั้งถัดไป หรือกรอกข้อมูลด้านล่างได้เลย</span></div>'}
+          <div class="checkout-recipient-fields">${field("ชื่อผู้รับ", "recipient", "text", 'minlength="2" maxlength="150" autocomplete="name"', delivery.recipient)}${field("เบอร์โทรศัพท์", "phone", "tel", 'pattern="0[0-9]{9}" autocomplete="tel"', delivery.phone)}</div>
+          <label class="field checkout-address-field"><span>ที่อยู่จัดส่ง</span><small>บ้านเลขที่ ถนน ตำบล/แขวง อำเภอ/เขต จังหวัด และรหัสไปรษณีย์</small><textarea name="address" required minlength="20" maxlength="1200" rows="4" autocomplete="street-address" placeholder="กรุณากรอกที่อยู่ให้ครบถ้วน">${esc(delivery.address)}</textarea></label>
+          <div class="notice checkout-payment-note">${i("CreditCard")} <span>ชำระผ่าน PromptPay หลังสร้างคำสั่งซื้อ กรุณาตรวจชื่อผู้รับเงินในแอปธนาคารทุกครั้ง</span></div>
+          <p class="form-error" role="alert"></p>
+          <button class="btn primary checkout-submit" type="submit">สร้างคำสั่งซื้อและรับ QR ${i("ArrowRight")}</button>
+        </form>
+        <aside class="summary-card checkout-summary" id="checkout-summary">${summary(true)}<p class="muted">ยอดสุดท้ายและสต็อกจะตรวจสอบจากฐานข้อมูลอีกครั้ง</p></aside>
+      </div>
+    </main>`;
   }
   async function ordersPage() {
     if (!session)
