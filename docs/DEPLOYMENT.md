@@ -14,7 +14,7 @@
 
 Apply numbered migrations in sequence, only to the ZenMarket project. Preserve all existing product/account/order data. Do not rerun migrations against an existing schema or reset a live database.
 
-Additive migrations `007_home_reviews.sql`, `008_store_operations.sql` `009_expiry_schedule.sql` and `010_checkout_expiry_isolation.sql` must precede this frontend deployment. Migration 008 adds expiry, private notifications, rate controls, minimal diagnostics and the owner export; 009 schedules the database sweep. Migration 010 keeps its transaction separate from checkout to avoid shared heartbeat/product lock inversion. Never rerun already-applied migrations.
+Additive migrations `007_home_reviews.sql`, `008_store_operations.sql`, `009_expiry_schedule.sql`, `010_checkout_expiry_isolation.sql`, and `011_category_icons.sql` must precede the matching frontend deployment. Migration 008 adds expiry, private notifications, rate controls, minimal diagnostics and the owner export; 009 schedules the database sweep. Migration 010 keeps its transaction separate from checkout to avoid shared heartbeat/product lock inversion. Migration 011 adds a constrained icon identifier to categories while preserving existing rows. Never rerun already-applied migrations.
 
 Migration `007_home_reviews.sql` grants anonymous/authenticated access only to a safe projection of the latest six 4–5-star reviews. It does not grant anonymous SELECT on products/full reviews, change stock, delete data or fabricate reviews.
 

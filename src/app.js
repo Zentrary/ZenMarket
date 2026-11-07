@@ -11,6 +11,7 @@ import {
 } from "./core/experience.js";
 import { needsMembership, safeReturnPath } from "./core/routes.js";
 import { getLanguage, localizePage, supportedLanguages } from "./core/i18n.js";
+import { categoryIcon } from "./core/category-icons.js";
 import {
   customerViewKey,
   readCustomerView,
@@ -277,7 +278,7 @@ async function refreshStore() {
   store = normalizeSettings(settingsResult.data);
   categories = [
     { name: "ทั้งหมด", icon: "LayoutGrid" },
-    ...(categoriesResult.data || []).map((c) => ({ ...c, icon: "Package" })),
+    ...(categoriesResult.data || []).map((c) => ({ ...c, icon: categoryIcon(c.icon) })),
   ];
 }
 async function uploadImage(bucket, file) {
@@ -311,7 +312,7 @@ function header() {
     ? `<a class="user-chip" href="/account/index.html" aria-label="บัญชี ${esc(profile?.username || session.user.email)}">${i("UserRound")}<span>@${esc(profile?.username || session.user.email)}</span></a><button type="button" class="logout-btn" data-action="logout">${i("LogOut")}<span>ออกจากระบบ</span></button>`
     : `<a class="btn secondary login-link" href="/auth/login.html">${i("UserRound")} เข้าสู่ระบบ</a><a class="btn primary register-link" href="/auth/register.html">สมัครสมาชิก</a>`;
   const ownerControls = `<a class="notification-link" href="/admin/operations.html" aria-label="แจ้งเตือนร้าน">${i("Mail")} แจ้งเตือน <b data-owner-alert-count>0</b></a><span class="owner-identity">${esc(profile?.username || "เจ้าของร้าน")}</span><button type="button" class="btn secondary" data-action="enter-customer-view">${i("Eye")} มุมมองผู้ใช้</button><button type="button" class="logout-btn" data-action="logout">${i("LogOut")}<span>ออกจากระบบ</span></button>`;
-  return `<a class="skip-link" href="#main-content">ข้ามไปเนื้อหาหลัก</a><header class="${managing ? "admin-header" : ""}"><div class="header-inner">${brand()}${managing ? '<span class="workspace-tag">ระบบจัดการร้านค้า</span>' : `<nav id="main-nav" aria-label="เมนูหลัก">${links.map(([key, href, label]) => `<a class="${r === key ? "active" : ""}" ${r === key ? 'aria-current="page"' : ""} href="${href}">${label}</a>`).join("")}</nav>`}<div class="header-actions">${session && !managing ? `<a class="cart-link" href="/shop/cart.html" aria-label="ตะกร้าสินค้า">${i("ShoppingBag")}<b data-cart-count>${count()}</b></a>` : ""}<div class="session-controls${!session ? " guest-account-actions" : ""}">${managing ? ownerControls : account}</div>${!managing ? `<button class="icon-btn mobile-menu" data-action="menu" aria-label="เปิดเมนู" aria-controls="main-nav" aria-expanded="false">${i("Menu")}</button>` : ""}<label class="language-control"><span class="sr-only">Language</span><select data-language aria-label="Language" title="Language"><option value="th" ${language === "th" ? "selected" : ""}>ไทย</option><option value="en" ${language === "en" ? "selected" : ""}>EN</option></select></label></div></div></header>${customerView ? `<section class="customer-view-bar" aria-label="มุมมองผู้ใช้"><div><strong>มุมมองผู้ใช้</strong><span>ใช้บัญชีเจ้าของร้าน · การสั่งซื้อและแก้ไขข้อมูลเป็นรายการจริง</span></div><button type="button" class="btn secondary" data-action="exit-customer-view">${i("ArrowLeft")} ออกจากมุมมองผู้ใช้</button></section>` : ""}${!db ? '<div class="demo-banner">ยังไม่ได้เชื่อมต่อฐานข้อมูล — ไม่สามารถเข้าสู่ระบบหรือสั่งซื้อได้</div>' : ""}`;
+  return `<a class="skip-link" href="#main-content">ข้ามไปเนื้อหาหลัก</a><header class="${managing ? "admin-header" : ""}"><div class="header-inner">${brand()}${managing ? '<span class="workspace-tag">ระบบจัดการร้านค้า</span>' : `<nav id="main-nav" aria-label="เมนูหลัก">${links.map(([key, href, label]) => `<a class="${r === key ? "active" : ""}" ${r === key ? 'aria-current="page"' : ""} href="${href}">${label}</a>`).join("")}</nav>`}<div class="header-actions">${session && !managing ? `<a class="cart-link" href="/shop/cart.html" aria-label="ตะกร้าสินค้า">${i("ShoppingBag")}<b data-cart-count>${count()}</b></a>` : ""}<div class="session-controls${!session ? " guest-account-actions" : ""}">${managing ? ownerControls : account}</div>${!managing ? `<button class="icon-btn mobile-menu" data-action="menu" aria-label="เปิดเมนู" aria-controls="main-nav" aria-expanded="false">${i("Menu")}</button>` : ""}<div class="language-switcher" role="group" aria-label="เลือกภาษา"><button type="button" class="language-option ${language === "th" ? "active" : ""}" data-language="th" aria-pressed="${language === "th"}" title="ภาษาไทย">TH</button><button type="button" class="language-option ${language === "en" ? "active" : ""}" data-language="en" aria-pressed="${language === "en"}" title="English">EN</button></div></div></div></header>${customerView ? `<section class="customer-view-bar" aria-label="มุมมองผู้ใช้"><div><strong>มุมมองผู้ใช้</strong><span>ใช้บัญชีเจ้าของร้าน · การสั่งซื้อและแก้ไขข้อมูลเป็นรายการจริง</span></div><button type="button" class="btn secondary" data-action="exit-customer-view">${i("ArrowLeft")} ออกจากมุมมองผู้ใช้</button></section>` : ""}${!db ? '<div class="demo-banner">ยังไม่ได้เชื่อมต่อฐานข้อมูล — ไม่สามารถเข้าสู่ระบบหรือสั่งซื้อได้</div>' : ""}`;
 }
 const empty = (
   title,
@@ -635,6 +636,13 @@ document.addEventListener("click", async (e) => {
     main?.focus();
     return;
   }
+  const languageButton = e.target.closest("button[data-language]");
+  if (languageButton) {
+    language = supportedLanguages.includes(languageButton.dataset.language) ? languageButton.dataset.language : "th";
+    try { localStorage.setItem("zen-language", language); } catch {}
+    render();
+    return;
+  }
   const notification = e.target.closest("[data-read-notification]");
   if (
     notification &&
@@ -925,12 +933,6 @@ document.addEventListener(
   true,
 );
 document.addEventListener("change", (e) => {
-  if (e.target.matches("[data-language]")) {
-    language = supportedLanguages.includes(e.target.value) ? e.target.value : "th";
-    try { localStorage.setItem("zen-language", language); } catch {}
-    render();
-    return;
-  }
   if (e.target.id === "saved-address") {
     const delivery = checkoutRecipient(
       addresses.find((a) => a.id === e.target.value),
@@ -1267,7 +1269,7 @@ document.addEventListener("submit", async (e) => {
         throw Error("กรุณาใช้ชื่อหมวดหมู่ที่ไม่ใช่ “ทั้งหมด”");
       const query =
         form.id === "category-form"
-          ? db.from("categories").insert({ name })
+          ? db.from("categories").insert({ name, icon: categoryIcon(data.icon) })
           : db
               .from("categories")
               .update({ name })
