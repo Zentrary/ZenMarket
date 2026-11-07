@@ -1058,6 +1058,7 @@ footer {
   background: #393939;
 }
 .status.paid,
+.status.ready_to_ship,
 .status.shipped {
   color: #cdcdcd;
   background: #353535;
@@ -2900,8 +2901,11 @@ dialog::backdrop {
   margin-top: 38px;
 }
 .review-card {
-  border-top: 1px solid var(--line);
-  padding: 23px 0 10px;
+  border: 1px solid #414141;
+  border-radius: 11px;
+  padding: 18px 20px;
+  margin-top: 12px;
+  background: #202020;
 }
 .review-card > div {
   display: flex;
@@ -2925,6 +2929,10 @@ dialog::backdrop {
 }
 .review-card small {
   font-size: 11px;
+}
+.review-final-note {
+  display: block;
+  margin-top: 12px;
 }
 .review-stars {
   color: #d9d9d9;
@@ -2957,8 +2965,10 @@ dialog::backdrop {
 .order-timeline {
   list-style: none;
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  padding: 12px 0 0;
+  grid-template-columns: repeat(7, minmax(130px, 1fr));
+  overflow-x: auto;
+  scrollbar-width: thin;
+  padding: 12px 0 8px;
   gap: 16px;
 }
 .order-timeline li {
@@ -3020,6 +3030,7 @@ dialog::backdrop {
   background: #3b3b3b;
   color: #e2e2e2;
 }
+.status.ready_to_ship,
 .status.shipped {
   background: #373737;
   color: #d2d2d2;
@@ -3284,7 +3295,7 @@ progress::-moz-progress-bar {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 25px 18px;
   }
-  .order-timeline li:nth-child(3):before {
+  .order-timeline li:nth-child(3n):before {
     display: none;
   }
   .dashboard-grid {
@@ -3406,6 +3417,10 @@ progress::-moz-progress-bar {
   }
   .order-timeline {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    overflow-x: visible;
+  }
+  .order-timeline li {
+    min-width: 0;
   }
   .order-timeline li:nth-child(3):before {
     display: block;
@@ -3659,6 +3674,24 @@ progress::-moz-progress-bar {
   max-height: 70vh;
   width: 100%;
   object-fit: contain;
+}
+.payment-slip-dialog {
+  width: min(1000px, calc(100% - 24px));
+  max-width: calc(100% - 24px);
+  padding: 20px;
+}
+.payment-slip-viewer h2 {
+  margin: 0 40px 14px 0;
+  font-size: 20px;
+}
+.payment-slip-viewer img {
+  display: block;
+  width: 100%;
+  max-height: min(78vh, 900px);
+  max-height: min(78dvh, 900px);
+  object-fit: contain;
+  background: #111;
+  border-radius: 8px;
 }
 #shipping-update-form {
   border-top: 1px solid #4b4b4b;
