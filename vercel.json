@@ -32,6 +32,16 @@
   ],
   "redirects": [
     {
+      "source": "/",
+      "destination": "/home.html",
+      "permanent": true
+    },
+    {
+      "source": "/index.html",
+      "destination": "/home.html",
+      "permanent": true
+    },
+    {
       "source": "/shop.html",
       "destination": "/shop/index.html",
       "permanent": true

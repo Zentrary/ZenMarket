@@ -20,6 +20,6 @@ export function audienceRedirect({ route, signedIn, isOwner, customerView }) {
       return "/admin/dashboard.html";
   } else if (route.startsWith("/admin/")) return "/shop/index.html";
   if (["/login", "/register"].includes(route))
-    return isOwner && !customerView ? "/admin/dashboard.html" : "/index.html";
+    return isOwner && !customerView ? "/admin/dashboard.html" : "/home.html";
   return "";
 }
