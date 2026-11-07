@@ -3688,3 +3688,41 @@ progress::-moz-progress-bar {
   .language-switcher { margin-left: 2px; }
   .language-option { min-width: 30px; min-height: 28px; padding-inline: 6px; }
 }
+
+/* Checkout form hierarchy: clear address controls, paired contact fields, and a quieter summary. */
+.checkout-layout { grid-template-columns: minmax(0, 1.45fr) minmax(300px, .85fr); gap: clamp(16px, 2.4vw, 28px); }
+.checkout-form { padding: clamp(20px, 3vw, 32px); }
+.checkout-form-heading { margin-bottom: 22px; padding-bottom: 16px; border-bottom: 1px solid #3b3b3b; }
+.checkout-form-heading .eyebrow { margin-bottom: 5px; }
+.checkout-form-heading h2 { margin: 0; font-size: 21px; }
+.checkout-form-heading p { margin: 5px 0 0; color: var(--muted); font-size: 12px; }
+.checkout-address-picker { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 12px; }
+.checkout-address-picker .field { margin-bottom: 0; }
+.checkout-address-add { min-height: 46px; padding: 9px 13px; white-space: nowrap; }
+.checkout-address-empty { display: flex; flex-direction: column; gap: 4px; margin: 12px 0 18px; padding: 12px 14px; border: 1px solid #3e3e3e; border-radius: 7px; background: #222222; }
+.checkout-address-empty strong { font-size: 12px; font-weight: 500; }
+.checkout-address-empty span, .checkout-address-help { color: #a6a6a6; font-size: 11px; line-height: 1.75; }
+.checkout-address-help { margin: 8px 0 15px; }
+.checkout-recipient-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.checkout-recipient-fields .field { margin-bottom: 16px; }
+.checkout-address-field { margin-bottom: 16px; }
+.checkout-address-field small { color: #a0a0a0; font-size: 11px; line-height: 1.6; }
+.checkout-address-field textarea { min-height: 112px; }
+.checkout-payment-note { display: flex; align-items: flex-start; gap: 8px; margin: 4px 0 16px; }
+.checkout-payment-note svg { flex: 0 0 17px; margin: 3px 0 0; }
+.checkout-payment-note span { min-width: 0; }
+.checkout-form > .form-error { margin: 0 0 10px; }
+.checkout-submit { align-self: flex-start; }
+.checkout-summary { align-self: start; }
+.checkout-summary > h3 { margin-top: 0; }
+@media (max-width: 900px) {
+  .checkout-layout { grid-template-columns: minmax(0, 1fr); }
+  .checkout-summary { order: 2; }
+}
+@media (max-width: 560px) {
+  .checkout-address-picker,
+  .checkout-recipient-fields { grid-template-columns: minmax(0, 1fr); }
+  .checkout-address-add { justify-self: start; }
+  .checkout-recipient-fields { gap: 0; }
+  .checkout-submit { width: 100%; }
+}

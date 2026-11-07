@@ -759,8 +759,11 @@ document.addEventListener("click", async (e) => {
       go("/shop?category=" + encodeURIComponent(category));
     } else if (action === "remove" || action === "quantity") {
       const row = cart.find((x) => x.id === id);
-      if (action === "remove") cart = cart.filter((x) => x.id !== id);
-      else if (row) {
+      if (action === "remove") {
+        const productName = products.find((p) => p.id === id)?.name || "รายการนี้";
+        if (!(await confirmAction(`ต้องการนำ “${productName}” ออกจากตะกร้าหรือไม่?`, { title: "ยืนยันการนำสินค้าออก", accept: "นำออก" }))) return;
+        cart = cart.filter((x) => x.id !== id);
+      } else if (row) {
         const p = products.find((x) => x.id === id);
         const n = row.quantity + Number(button.dataset.delta);
         if (n > Math.min(p?.stock || 0, 99))
@@ -1181,14 +1184,19 @@ document.addEventListener("submit", async (e) => {
       );
     } else if (form.id === "checkout-form") {
       if (!session) throw Error("กรุณาเข้าสู่ระบบ");
+      const recipient = String(data.recipient || "").trim();
+      const phone = String(data.phone || "").trim();
+      const address = String(data.address || "").trim();
+      if (recipient.length < 2 || recipient.length > 150)
+        throw Error("กรุณากรอกชื่อผู้รับอย่างน้อย 2 ตัวอักษร");
+      if (!/^0[0-9]{9}$/.test(phone))
+        throw Error("กรุณากรอกเบอร์โทรศัพท์ 10 หลักให้ถูกต้อง");
+      if (address.length < 20 || address.length > 1200)
+        throw Error("กรุณากรอกที่อยู่จัดส่งหลังตัดช่องว่างอย่างน้อย 20 ตัวอักษร");
       if (!form.dataset.request) form.dataset.request = crypto.randomUUID();
       const { data: order, error } = await db.rpc("create_order", {
         cart,
-        delivery: {
-          recipient: data.recipient.trim(),
-          phone: data.phone,
-          address: data.address.trim(),
-        },
+        delivery: { recipient, phone, address },
         request_key: form.dataset.request,
       });
       if (error) throw error;
