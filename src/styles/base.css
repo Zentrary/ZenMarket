@@ -2901,8 +2901,11 @@ dialog::backdrop {
   margin-top: 38px;
 }
 .review-card {
-  border-top: 1px solid var(--line);
-  padding: 23px 0 10px;
+  border: 1px solid #414141;
+  border-radius: 11px;
+  padding: 18px 20px;
+  margin-top: 12px;
+  background: #202020;
 }
 .review-card > div {
   display: flex;
