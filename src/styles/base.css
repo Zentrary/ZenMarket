@@ -939,18 +939,36 @@ footer {
   line-height: 1.8;
 }
 .field input[type="file"] {
-  font-size: 12px;
+  min-height: 58px;
+  padding: 8px;
   overflow: hidden;
+  border: 1px dashed #5a5a5a;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #242424, #1c1c1c);
+  color: #bdbdbd;
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color .18s ease, background-color .18s ease, box-shadow .18s ease;
 }
-.field input[type="file"]::file-selector-button {
-  padding: 7px 10px;
-  margin-right: 10px;
-  border: 0;
-  border-radius: 4px;
-  background: #272727;
-  color: var(--ink);
+.field input[type="file"]:hover { border-color: #888888; background-color: #272727; }
+.field input[type="file"]:focus-visible { outline: 2px solid #bcbcbc; outline-offset: 2px; }
+.field input[type="file"]::file-selector-button,
+.field input[type="file"]::-webkit-file-upload-button {
+  min-height: 40px;
+  padding: 8px 14px;
+  margin: 0 12px 0 0;
+  border: 1px solid #5a5a5a;
+  border-radius: 7px;
+  background: #343434;
+  color: #f0f0f0;
   font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color .18s ease, border-color .18s ease;
 }
+.field input[type="file"]:hover::file-selector-button,
+.field input[type="file"]:hover::-webkit-file-upload-button { border-color: #828282; background: #414141; }
+.address-label-hint { display: block; margin: -13px 0 16px; font-size: 11px; }
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1152,6 +1170,38 @@ footer {
 }
 .payment-card form {
   text-align: left;
+}
+.admin-order-workflow {
+  text-align: left;
+}
+.admin-order-workflow > .eyebrow {
+  display: block;
+}
+.admin-order-workflow .payment-slip-review {
+  border-top: 1px solid var(--line);
+  margin-top: 20px;
+  padding-top: 8px;
+}
+.admin-order-workflow .payment-slip-review h3 {
+  margin-bottom: 8px;
+}
+.admin-order-workflow .button-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 10px;
+}
+.admin-order-workflow .button-row .btn {
+  flex: 1 1 170px;
+  margin-top: 8px;
+}
+.admin-order-workflow form {
+  border-top: 1px solid var(--line);
+  margin-top: 20px;
+  padding-top: 10px;
+}
+.tracking-info .btn {
+  margin-top: 12px;
 }
 .payment-card small {
   font-size: 11px;
