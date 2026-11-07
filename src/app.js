@@ -10,7 +10,7 @@ import {
   reviewColumns,
 } from "./core/experience.js";
 import { needsMembership, safeReturnPath } from "./core/routes.js";
-import { getLanguage, localizePage, supportedLanguages } from "./core/i18n.js";
+import { getLanguage, localizePage, supportedLanguages, translateText } from "./core/i18n.js";
 import { categoryIcon } from "./core/category-icons.js";
 import {
   customerViewKey,
@@ -304,12 +304,13 @@ function header() {
       ? [
           ["/shop", "/shop/index.html", "สินค้า"],
           ["/orders", "/account/orders.html", "คำสั่งซื้อ"],
+          ["/account", "/account/index.html", "บัญชีของฉัน"],
         ]
       : []),
     ["/contact", "/pages/contact.html", "ช่องทางการติดต่อ"],
   ];
   const account = session
-    ? `<a class="user-chip" href="/account/index.html" aria-label="บัญชี ${esc(profile?.username || session.user.email)}">${i("UserRound")}<span>@${esc(profile?.username || session.user.email)}</span></a><button type="button" class="logout-btn" data-action="logout">${i("LogOut")}<span>ออกจากระบบ</span></button>`
+    ? `<span class="user-chip" aria-label="บัญชี ${esc(profile?.username || session.user.email)}">${i("UserRound")}<span>@${esc(profile?.username || session.user.email)}</span></span><button type="button" class="logout-btn" data-action="logout">${i("LogOut")}<span>ออกจากระบบ</span></button>`
     : `<a class="btn secondary login-link" href="/auth/login.html">${i("UserRound")} เข้าสู่ระบบ</a><a class="btn primary register-link" href="/auth/register.html">สมัครสมาชิก</a>`;
   const ownerControls = `<a class="notification-link" href="/admin/operations.html" aria-label="แจ้งเตือนร้าน">${i("Mail")} แจ้งเตือน <b data-owner-alert-count>0</b></a><span class="owner-identity">${esc(profile?.username || "เจ้าของร้าน")}</span><button type="button" class="btn secondary" data-action="enter-customer-view">${i("Eye")} มุมมองผู้ใช้</button><button type="button" class="logout-btn" data-action="logout">${i("LogOut")}<span>ออกจากระบบ</span></button>`;
   return `<a class="skip-link" href="#main-content">ข้ามไปเนื้อหาหลัก</a><header class="${managing ? "admin-header" : ""}"><div class="header-inner">${brand()}${managing ? '<span class="workspace-tag">ระบบจัดการร้านค้า</span>' : `<nav id="main-nav" aria-label="เมนูหลัก">${links.map(([key, href, label]) => `<a class="${r === key ? "active" : ""}" ${r === key ? 'aria-current="page"' : ""} href="${href}">${label}</a>`).join("")}</nav>`}<div class="header-actions">${session && !managing ? `<a class="cart-link" href="/shop/cart.html" aria-label="ตะกร้าสินค้า">${i("ShoppingBag")}<b data-cart-count>${count()}</b></a>` : ""}<div class="session-controls${!session ? " guest-account-actions" : ""}">${managing ? ownerControls : account}</div>${!managing ? `<button class="icon-btn mobile-menu" data-action="menu" aria-label="เปิดเมนู" aria-controls="main-nav" aria-expanded="false">${i("Menu")}</button>` : ""}<div class="language-switcher" role="group" aria-label="เลือกภาษา"><button type="button" class="language-option ${language === "th" ? "active" : ""}" data-language="th" aria-pressed="${language === "th"}" title="ภาษาไทย">TH</button><button type="button" class="language-option ${language === "en" ? "active" : ""}" data-language="en" aria-pressed="${language === "en"}" title="English">EN</button></div></div></div></header>${customerView ? `<section class="customer-view-bar" aria-label="มุมมองผู้ใช้"><div><strong>มุมมองผู้ใช้</strong><span>ใช้บัญชีเจ้าของร้าน · การสั่งซื้อและแก้ไขข้อมูลเป็นรายการจริง</span></div><button type="button" class="btn secondary" data-action="exit-customer-view">${i("ArrowLeft")} ออกจากมุมมองผู้ใช้</button></section>` : ""}${!db ? '<div class="demo-banner">ยังไม่ได้เชื่อมต่อฐานข้อมูล — ไม่สามารถเข้าสู่ระบบหรือสั่งซื้อได้</div>' : ""}`;
@@ -560,6 +561,7 @@ function modal(content) {
   const dialog = document.createElement("dialog");
   dialog.className = "editor-dialog";
   dialog.innerHTML = `<button class="modal-close icon-btn" data-action="close-modal" aria-label="ปิด">${i("X")}</button>${content}`;
+  localizePage(dialog, language);
   document.body.append(dialog);
   dialog.showModal();
   preparePage();
@@ -603,7 +605,7 @@ function addressModal(id) {
     return;
   }
   modal(
-    `<h2>${id ? "แก้ไขที่อยู่" : "เพิ่มที่อยู่ใหม่"}</h2><form id="address-form" data-id="${a.id || ""}">${field("ชื่อเรียกที่อยู่", "label", "text", 'maxlength="40" placeholder="เช่น บ้าน หรือ ที่ทำงาน"', a.label || "")}${field("ชื่อผู้รับ", "recipient", "text", 'minlength="2" maxlength="150" autocomplete="name"', a.recipient || [profile?.first_name, profile?.last_name].filter(Boolean).join(" "))}${field("เบอร์โทรศัพท์", "phone", "tel", 'pattern="0[0-9]{9}" autocomplete="tel"', a.phone || profile?.phone || "")}<label class="field"><span>ที่อยู่จัดส่งครบถ้วน พร้อมรหัสไปรษณีย์</span><textarea name="address" required minlength="20" maxlength="1200" rows="4" autocomplete="street-address">${esc(a.address || "")}</textarea></label><label class="checkbox"><input type="checkbox" name="is_default" ${a.is_default || !addresses.length ? "checked" : ""}> ใช้เป็นที่อยู่หลัก</label><p class="form-error" role="alert"></p><button class="btn primary" type="submit">${i("Check")} บันทึกที่อยู่</button></form>`,
+    `<h2>${id ? "แก้ไขที่อยู่" : "เพิ่มที่อยู่ใหม่"}</h2><form id="address-form" data-id="${a.id || ""}">${field("ชื่อเรียกที่อยู่", "label", "text", 'maxlength="40" list="address-label-suggestions" placeholder="เช่น ห้องแฟน, บ้าน, ออฟฟิศ หรือบ้านเพื่อน"', a.label || "")}<datalist id="address-label-suggestions"><option value="บ้าน"><option value="ออฟฟิศ"><option value="ห้องแฟน"><option value="บ้านเพื่อน"></datalist><small class="muted address-label-hint">ชื่อนี้จะแสดงในรายการเลือกที่อยู่ตอนสั่งซื้อ</small>${field("ชื่อผู้รับ", "recipient", "text", 'minlength="2" maxlength="150" autocomplete="name"', a.recipient || [profile?.first_name, profile?.last_name].filter(Boolean).join(" "))}${field("เบอร์โทรศัพท์", "phone", "tel", 'pattern="0[0-9]{9}" autocomplete="tel"', a.phone || profile?.phone || "")}<label class="field"><span>ที่อยู่จัดส่งครบถ้วน พร้อมรหัสไปรษณีย์</span><textarea name="address" required minlength="20" maxlength="1200" rows="4" autocomplete="street-address">${esc(a.address || "")}</textarea></label><label class="checkbox"><input type="checkbox" name="is_default" ${a.is_default || !addresses.length ? "checked" : ""}> ใช้เป็นที่อยู่หลัก</label><p class="form-error" role="alert"></p><button class="btn primary" type="submit">${i("Check")} บันทึกที่อยู่</button></form>`,
   );
 }
 async function uploadShippingImages(form) {
@@ -708,6 +710,24 @@ document.addEventListener("click", async (e) => {
       await refreshAddresses();
       await render();
       toast("ลบที่อยู่แล้ว");
+    } else if (action === "copy-tracking") {
+      const tracking = button.dataset.tracking || "";
+      if (!tracking) throw Error("ไม่พบเลขติดตามพัสดุ");
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(tracking);
+      } else {
+        const input = document.createElement("textarea");
+        input.value = tracking;
+        input.setAttribute("readonly", "");
+        input.style.position = "fixed";
+        input.style.opacity = "0";
+        document.body.append(input);
+        input.select();
+        const copied = document.execCommand("copy");
+        input.remove();
+        if (!copied) throw Error("คัดลอกเลขพัสดุไม่สำเร็จ กรุณาลองอีกครั้ง");
+      }
+      toast("คัดลอกเลขพัสดุแล้ว");
     } else if (action === "view-shipping-photo") {
       const { data, error } = await db.storage
         .from("shipping-updates")
@@ -752,6 +772,7 @@ document.addEventListener("click", async (e) => {
       $("#catalog-list").innerHTML = catalogList(
         route() === "/" ? 8 : undefined,
       );
+      localizePage($("#catalog-list"), language);
       preparePage();
     } else if (action === "collection") {
       category = button.dataset.category;
@@ -959,7 +980,7 @@ document.addEventListener("change", (e) => {
         previewURLs.push(url);
         const img = document.createElement("img");
         img.src = url;
-        img.alt = "รูปการจัดส่ง " + (index + 1);
+        img.alt = translateText("รูปการจัดส่ง " + (index + 1), language);
         preview?.append(img);
       });
     } catch (error) {
@@ -986,7 +1007,7 @@ document.addEventListener("change", (e) => {
         previewURLs.push(url);
         const img = document.createElement("img");
         img.src = url;
-        img.alt = "รูปใหม่ " + (index + 1);
+        img.alt = translateText("รูปใหม่ " + (index + 1), language);
         preview.append(img);
       });
     } catch (error) {
@@ -997,6 +1018,7 @@ document.addEventListener("change", (e) => {
   if (e.target.id === "sort") {
     sort = e.target.value;
     $("#catalog-list").innerHTML = catalogList(route() === "/" ? 8 : undefined);
+    localizePage($("#catalog-list"), language);
     preparePage();
   }
 });
@@ -1034,6 +1056,7 @@ document.addEventListener("submit", async (e) => {
     if (form.id === "search-form") {
       search = data.search.trim();
       $("#catalog-list").innerHTML = catalogList();
+      localizePage($("#catalog-list"), language);
       preparePage();
       return;
     }
@@ -1347,6 +1370,9 @@ document.addEventListener("submit", async (e) => {
       toast("บันทึกสินค้าแล้ว");
     } else if (form.id === "ship-form" || form.id === "shipping-update-form") {
       if (!admin) throw Error("สำหรับเจ้าของร้านเท่านั้น");
+      const tracking = String(data.tracking || "").trim();
+      if (form.id === "ship-form" && (tracking.length < 1 || tracking.length > 100))
+        throw Error("กรุณากรอกเลขติดตามพัสดุให้ถูกต้อง");
       const message = String(data.shipping_message || "").trim();
       if (
         form.id === "shipping-update-form" &&
@@ -1364,7 +1390,7 @@ document.addEventListener("submit", async (e) => {
           p_message: message,
           p_images: images,
           ...(form.id === "ship-form"
-            ? { p_tracking: data.tracking.trim() }
+            ? { p_tracking: tracking }
             : {}),
         },
       );
@@ -1392,7 +1418,7 @@ document.addEventListener("submit", async (e) => {
   } catch (err) {
     if (["login-form", "register-form"].includes(form.id)) resetCaptcha(form);
     if (errorBox)
-      errorBox.textContent = err.message || "เกิดข้อผิดพลาด กรุณาลองอีกครั้ง";
+      errorBox.textContent = translateText(err.message || "เกิดข้อผิดพลาด กรุณาลองอีกครั้ง", language);
     handleError(err);
   } finally {
     if (submit) submit.disabled = false;
@@ -1600,12 +1626,13 @@ function updatePaymentCountdown() {
       : "00:00";
   if (!seconds) {
     const label = notice.querySelector("[data-deadline-label]");
-    if (label) label.textContent = "หมดเวลาชำระเงินแล้ว";
+    if (label) label.textContent = translateText("หมดเวลาชำระเงินแล้ว", language);
     const payment = document.querySelector("[data-expiring-payment]");
     if (payment && !payment.dataset.closed) {
       payment.dataset.closed = "true";
       payment.innerHTML =
         '<h2>หมดเวลาชำระเงิน</h2><p>กรุณาอย่าโอนเงิน หากโอนแล้วให้ติดต่อร้านพร้อมหลักฐาน ไม่ต้องสร้างรายการใหม่หรือชำระซ้ำ</p><a class="btn secondary" href="/pages/contact.html">ติดต่อร้าน</a>';
+      localizePage(payment, language);
     }
   }
 }
