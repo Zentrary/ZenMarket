@@ -64,7 +64,7 @@ export function createAccountPages(context) {
       ],
     };
     const [eye, title, intro, a, b] = pages[type] || pages.privacy;
-    return `<main class="wrap subpage info-page">${pageHead(eye, title, intro)}<div class="info-layout"><article class="panel prose"><p>${a}</p><p>${b}</p><a class="btn secondary" href="${session ? "/shop/index.html" : "/index.html"}">${session ? "เลือกสินค้า" : "กลับหน้าหลัก"} ${i("ArrowRight")}</a></article></div></main>`;
+    return `<main class="wrap subpage info-page">${pageHead(eye, title, intro)}<div class="info-layout"><article class="panel prose"><p>${a}</p><p>${b}</p><a class="btn secondary" href="${session ? "/shop/index.html" : "/home.html"}">${session ? "เลือกสินค้า" : "กลับหน้าหลัก"} ${i("ArrowRight")}</a></article></div></main>`;
   }
   return { authPage, accountPage, recoveryPage, infoPage };
 }

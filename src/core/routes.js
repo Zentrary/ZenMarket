@@ -1,6 +1,6 @@
 // Actual HTML entry points. IDs and filters use query parameters, never inline code.
 export const pagePaths = {
-  "/": "/index.html",
+  "/": "/home.html",
   "/admin/operations": "/admin/operations.html",
   "/admin/login": "/admin/login.html",
   "/admin/order": "/admin/order.html",
@@ -34,11 +34,11 @@ export function pageURL(route) {
   const match = path.match(/^\/(product|order|admin\/order)\/([^/]+)$/);
   if (match)
     return pagePaths["/" + match[1]] + "?id=" + encodeURIComponent(match[2]);
-  return (pagePaths[path] || "/index.html") + (query ? "?" + query : "");
+  return (pagePaths[path] || "/home.html") + (query ? "?" + query : "");
 }
 export function currentRoute(locationLike = location) {
   const path =
-    locationLike.pathname === "/" ? "/index.html" : locationLike.pathname;
+    locationLike.pathname === "/" ? "/home.html" : locationLike.pathname;
   const entry = Object.entries(pagePaths).find(
     ([key, value]) => value === path && key !== "/admin",
   );

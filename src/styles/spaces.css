@@ -130,18 +130,6 @@ body[data-space="admin"] .admin-header {
 .store-home .btn:hover {
   transform: none;
 }
-.home-text-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  min-height: 44px;
-  font-size: 12px;
-  color: #cccccc;
-}
-.home-text-link:hover {
-  color: #ffffff;
-  text-decoration: underline;
-}
 .home-hero-note {
   display: flex;
   align-items: center;
@@ -230,23 +218,6 @@ body[data-space="admin"] .admin-header {
   color: #999999;
   width: 18px;
   height: 18px;
-}
-.home-guide-contact {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-  font-size: 10px;
-  color: #cccccc;
-  margin: 8px -28px 0;
-  padding: 17px 28px;
-  border-top: 1px solid #3e3e3e;
-  background: #232323;
-  border-radius: 0 0 12px 12px;
-}
-.home-guide-contact svg {
-  width: 16px;
-  height: 16px;
 }
 .home-service-strip {
   display: grid;
@@ -582,10 +553,6 @@ body[data-space="admin"] .admin-header {
   }
   .home-guide-title h2 {
     font-size: 28px;
-  }
-  .home-guide-contact {
-    margin-inline: -24px;
-    padding-inline: 24px;
   }
   .home-service-strip {
     grid-template-columns: minmax(0, 1fr);
@@ -929,42 +896,9 @@ body[data-space="admin"] .workspace-tag {
 .home-guide-title h2 { font-size: clamp(24px, 2.5vw, 32px); line-height: 1.5; }
 .home-guide-title h2 span { color: #ababab; }
 .home-guide-number { background: #303030; border-color: #505050; }
-.home-guide-contact { border-radius: 0 0 16px 16px; }
 
 /* Consistent navigation and clear, direct actions across the owner workspace. */
 body[data-space="admin"] .workspace-sidebar nav a:hover { background: #262626; color: #ffffff; }
-.admin-shortcuts {
-  padding: 24px;
-  margin-bottom: 22px;
-  border: 1px solid #3b3b3b;
-  border-radius: 8px;
-  background: #202020;
-}
-.admin-shortcuts h2 { margin: 5px 0; font-size: 20px; }
-.admin-shortcuts p { margin: 0; color: #bcbcbc; font-size: 12px; }
-.admin-shortcut-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-  gap: 10px;
-  margin-top: 20px;
-}
-.admin-shortcut {
-  min-width: 0;
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 15px;
-  border: 1px solid #444444;
-  border-radius: 6px;
-  background: #191919;
-}
-.admin-shortcut:hover { background: #303030; border-color: #777777; }
-.admin-shortcut > svg { flex: 0 0 19px; width: 19px; height: 19px; color: #cccccc; }
-.admin-shortcut > svg:last-child { margin-left: auto; width: 15px; height: 15px; flex-basis: 15px; }
-.admin-shortcut span { min-width: 0; }
-.admin-shortcut strong, .admin-shortcut small { display: block; }
-.admin-shortcut strong { font-size: 12px; }
-.admin-shortcut small { margin-top: 5px; color: #bcbcbc; font-size: 10px; line-height: 1.6; }
 .settings-jump { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
 .settings-jump a { display: inline-flex; align-items: center; min-height: 44px; padding: 9px 14px; border: 1px solid #444444; border-radius: 5px; color: #dddddd; font-size: 12px; }
 .settings-jump a:hover { background: #303030; color: #ffffff; }
@@ -974,6 +908,4 @@ body[data-space="admin"] .workspace-sidebar nav a:hover { background: #262626; c
   .home-hero { grid-template-columns: minmax(0, 1fr); gap: 30px; padding: 28px 22px; border-radius: 14px; }
   .home-intro h1 { font-size: clamp(32px, 8vw, 48px); letter-spacing: -1px; }
   .home-order-guide { padding: 20px 24px 0; }
-  .admin-shortcuts { padding: 18px; }
-  .admin-shortcut-grid { grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); }
 }

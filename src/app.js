@@ -10,6 +10,7 @@ import {
   reviewColumns,
 } from "./core/experience.js";
 import { needsMembership, safeReturnPath } from "./core/routes.js";
+import { getLanguage, localizePage, supportedLanguages } from "./core/i18n.js";
 import {
   customerViewKey,
   readCustomerView,
@@ -66,7 +67,6 @@ import {
 } from "lucide";
 import QRCode from "qrcode";
 import {
-  money,
   escapeHTML as esc,
   safeImage,
   validPromptPay,
@@ -84,6 +84,7 @@ import { createStorePages } from "./pages/storefront/store.js";
 import { createCheckoutPages } from "./pages/customer/checkout.js";
 import { createAccountPages } from "./pages/customer/account.js";
 let store = { ...defaultSettings };
+let language = getLanguage();
 let categories = [{ name: "ทั้งหมด", icon: "LayoutGrid" }];
 let signingOut = false;
 const legacyLink = migrateLegacyLink();
@@ -236,6 +237,7 @@ function pageContext() {
     promptpayPayload,
     statusLabel,
     date,
+    shortDate,
     store,
     productImages,
     safeSocialURL,
@@ -289,14 +291,14 @@ async function uploadImage(bucket, file) {
 }
 function brand() {
   const target =
-    admin && !customerView ? "/admin/dashboard.html" : "/index.html";
+    admin && !customerView ? "/admin/dashboard.html" : "/home.html";
   return `<a href="${target}" class="brand" aria-label="${esc(store.shop_name)} ${admin && !customerView ? "หลังบ้าน" : "หน้าหลัก"}">${store.logo_url ? `<img class="shop-logo" src="${safeImage(store.logo_url)}" alt="">` : `<span class="brand-mark">${i("ShoppingBag")}</span>`}<span>${esc(store.shop_name)}</span></a>`;
 }
 function header() {
   const r = route();
   const managing = admin && !customerView;
   const links = [
-    ["/", "/index.html", "หน้าหลัก"],
+    ["/", "/home.html", "หน้าหลัก"],
     ...(session
       ? [
           ["/shop", "/shop/index.html", "สินค้า"],
@@ -309,7 +311,7 @@ function header() {
     ? `<a class="user-chip" href="/account/index.html" aria-label="บัญชี ${esc(profile?.username || session.user.email)}">${i("UserRound")}<span>@${esc(profile?.username || session.user.email)}</span></a><button type="button" class="logout-btn" data-action="logout">${i("LogOut")}<span>ออกจากระบบ</span></button>`
     : `<a class="btn secondary login-link" href="/auth/login.html">${i("UserRound")} เข้าสู่ระบบ</a><a class="btn primary register-link" href="/auth/register.html">สมัครสมาชิก</a>`;
   const ownerControls = `<a class="notification-link" href="/admin/operations.html" aria-label="แจ้งเตือนร้าน">${i("Mail")} แจ้งเตือน <b data-owner-alert-count>0</b></a><span class="owner-identity">${esc(profile?.username || "เจ้าของร้าน")}</span><button type="button" class="btn secondary" data-action="enter-customer-view">${i("Eye")} มุมมองผู้ใช้</button><button type="button" class="logout-btn" data-action="logout">${i("LogOut")}<span>ออกจากระบบ</span></button>`;
-  return `<a class="skip-link" href="#main-content">ข้ามไปเนื้อหาหลัก</a><header class="${managing ? "admin-header" : ""}"><div class="header-inner">${brand()}${managing ? '<span class="workspace-tag">ระบบจัดการร้านค้า</span>' : `<nav id="main-nav" aria-label="เมนูหลัก">${links.map(([key, href, label]) => `<a class="${r === key ? "active" : ""}" ${r === key ? 'aria-current="page"' : ""} href="${href}">${label}</a>`).join("")}</nav>`}<div class="header-actions">${session && !managing ? `<a class="cart-link" href="/shop/cart.html" aria-label="ตะกร้าสินค้า">${i("ShoppingBag")}<b data-cart-count>${count()}</b></a>` : ""}<div class="session-controls${!session ? " guest-account-actions" : ""}">${managing ? ownerControls : account}</div>${!managing ? `<button class="icon-btn mobile-menu" data-action="menu" aria-label="เปิดเมนู" aria-controls="main-nav" aria-expanded="false">${i("Menu")}</button>` : ""}</div></div></header>${customerView ? `<section class="customer-view-bar" aria-label="มุมมองผู้ใช้"><div><strong>มุมมองผู้ใช้</strong><span>ใช้บัญชีเจ้าของร้าน · การสั่งซื้อและแก้ไขข้อมูลเป็นรายการจริง</span></div><button type="button" class="btn secondary" data-action="exit-customer-view">${i("ArrowLeft")} ออกจากมุมมองผู้ใช้</button></section>` : ""}${!db ? '<div class="demo-banner">ยังไม่ได้เชื่อมต่อฐานข้อมูล — ไม่สามารถเข้าสู่ระบบหรือสั่งซื้อได้</div>' : ""}`;
+  return `<a class="skip-link" href="#main-content">ข้ามไปเนื้อหาหลัก</a><header class="${managing ? "admin-header" : ""}"><div class="header-inner">${brand()}${managing ? '<span class="workspace-tag">ระบบจัดการร้านค้า</span>' : `<nav id="main-nav" aria-label="เมนูหลัก">${links.map(([key, href, label]) => `<a class="${r === key ? "active" : ""}" ${r === key ? 'aria-current="page"' : ""} href="${href}">${label}</a>`).join("")}</nav>`}<div class="header-actions">${session && !managing ? `<a class="cart-link" href="/shop/cart.html" aria-label="ตะกร้าสินค้า">${i("ShoppingBag")}<b data-cart-count>${count()}</b></a>` : ""}<div class="session-controls${!session ? " guest-account-actions" : ""}">${managing ? ownerControls : account}</div>${!managing ? `<button class="icon-btn mobile-menu" data-action="menu" aria-label="เปิดเมนู" aria-controls="main-nav" aria-expanded="false">${i("Menu")}</button>` : ""}<label class="language-control"><span class="sr-only">Language</span><select data-language aria-label="Language" title="Language"><option value="th" ${language === "th" ? "selected" : ""}>ไทย</option><option value="en" ${language === "en" ? "selected" : ""}>EN</option></select></label></div></div></header>${customerView ? `<section class="customer-view-bar" aria-label="มุมมองผู้ใช้"><div><strong>มุมมองผู้ใช้</strong><span>ใช้บัญชีเจ้าของร้าน · การสั่งซื้อและแก้ไขข้อมูลเป็นรายการจริง</span></div><button type="button" class="btn secondary" data-action="exit-customer-view">${i("ArrowLeft")} ออกจากมุมมองผู้ใช้</button></section>` : ""}${!db ? '<div class="demo-banner">ยังไม่ได้เชื่อมต่อฐานข้อมูล — ไม่สามารถเข้าสู่ระบบหรือสั่งซื้อได้</div>' : ""}`;
 }
 const empty = (
   title,
@@ -379,11 +381,16 @@ function checkoutPage(...args) {
   }).checkoutPage(...args);
 }
 const statusLabel = statusLabels;
-const date = (s) =>
-  new Date(s).toLocaleString("th-TH", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
+const locale = () => language === "en" ? "en-US" : "th-TH";
+const money = (amount) => new Intl.NumberFormat(locale(), {
+  style: "currency", currency: "THB", maximumFractionDigits: 2,
+}).format(Number(amount) || 0);
+const date = (s) => new Date(s).toLocaleString(locale(), {
+  dateStyle: "medium", timeStyle: "short",
+});
+const shortDate = (s) => new Date(s).toLocaleDateString(locale(), {
+  day: "numeric", month: "short", timeZone: "Asia/Bangkok",
+});
 async function ordersPage(...args) {
   return createCheckoutPages({
     ...pageContext(),
@@ -422,6 +429,8 @@ async function render() {
   app.innerHTML =
     header() +
     `<main class="wrap loading">กำลังจัดเตรียมสิ่งดีๆ ให้คุณ…</main>`;
+  document.documentElement.lang = language;
+  localizePage(app, language);
   try {
     if (r === "/") content = await home();
     else if (r === "/shop") content = shop();
@@ -472,6 +481,8 @@ async function render() {
     if (version !== routeVersion) return;
     if (!content.startsWith("<main")) content = "<main>" + content + "</main>";
     app.innerHTML = header() + content;
+    document.documentElement.lang = language;
+    localizePage(app, language);
     preparePage();
     if (!$("main").id) $("main").id = "main-content";
     document.title = `${$("main h1")?.textContent || "ร้านค้าออนไลน์"} | ${store.shop_name}`;
@@ -481,6 +492,8 @@ async function render() {
     app.innerHTML =
       header() +
       `<main class="wrap subpage" id="main-content">${empty("ไม่สามารถโหลดข้อมูลได้", esc(e.message || "กรุณาลองอีกครั้ง"))}</main>`;
+    document.documentElement.lang = language;
+    localizePage(app, language);
     preparePage();
   }
 }
@@ -660,7 +673,7 @@ document.addEventListener("click", async (e) => {
         );
       }
       customerView = true;
-      location.assign("/index.html");
+      location.assign("/home.html");
     } else if (action === "exit-customer-view") {
       e.preventDefault();
       clearCustomerView();
@@ -912,6 +925,12 @@ document.addEventListener(
   true,
 );
 document.addEventListener("change", (e) => {
+  if (e.target.matches("[data-language]")) {
+    language = supportedLanguages.includes(e.target.value) ? e.target.value : "th";
+    try { localStorage.setItem("zen-language", language); } catch {}
+    render();
+    return;
+  }
   if (e.target.id === "saved-address") {
     const delivery = checkoutRecipient(
       addresses.find((a) => a.id === e.target.value),
