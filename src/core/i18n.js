@@ -138,10 +138,16 @@ export function translateText(value, language = getLanguage()) {
   }
   // Some templates combine fixed copy with computed shipping/stock values.
   // Replace only curated multi-character UI fragments in those mixed text nodes.
-  let result = value.replace(/(\d+) ชิ้น/g, (_, count) => `${count} ${count === "1" ? "item" : "items"}`);
+  let result = value;
+  result = result.replace(/^(\d+) รายการสินค้าในร้าน$/, (_, count) => `${count} ${count === "1" ? "product" : "products"} in your store`);
+  result = result.replace(/^(\d+) รีวิวจากผู้ซื้อจริง$/, (_, count) => `${count} ${count === "1" ? "review from a verified buyer" : "reviews from verified buyers"}`);
+  result = result.replace(/^(\d+) คำสั่งซื้อที่ยืนยันยอดแล้ว$/, (_, count) => `${count} ${count === "1" ? "order with verified payment" : "orders with verified payment"}`);
+  result = result.replace(/^(\d+) รายการ$/, (_, count) => `${count} ${count === "1" ? "item" : "items"}`);
+  result = result.replace(/^หน้า (\d+)$/, "Page $1");
+  result = result.replace(/(\d+) ชิ้น/g, (_, count) => `${count} ${count === "1" ? "item" : "items"}`);
   result = result.replace(/(\d+) สินค้า/g, (_, count) => `${count} ${count === "1" ? "product" : "products"}`);
   result = result.replace(/(\d+) รีวิว/g, (_, count) => `${count} ${count === "1" ? "review" : "reviews"}`);
-  const fragments = ["ตรวจสอบที่อยู่ก่อนยืนยันคำสั่งซื้อ", "ตรวจสอบยอดรวมอีกครั้งที่หน้าชำระเงิน", "ติดต่อร้านพร้อมแจ้งเลขคำสั่งซื้อ", "เพื่อดูสถานะการชำระเงินและการจัดส่ง", "เปิดเมนูคำสั่งซื้อ", "เมื่อเข้าสู่ระบบแล้ว", "จัดส่งฟรีเมื่อซื้อครบ", "จัดส่งฟรี", "ค่าจัดส่ง", "เหลือเพียง", "ตรวจยอด ", "กำลังเตรียม ", "พร้อมจัดส่ง ", "พร้อมส่ง", "ชำระผ่าน PromptPay", "แนบหลักฐานภายในเวลาที่กำหนด", "รับสินค้าแล้ว", "คำสั่งซื้อที่ยืนยันยอดแล้ว", "หมวดหมู่ทั้งหมด", "คำสั่งซื้อล่าสุด", "QR PromptPay ยอด ", "ดูรูปที่", "การสั่งซื้อและจัดส่ง", "SOLD OUT · ", "จัดส่งสินค้าแล้ว เลขติดตาม: "]
+  const fragments = ["ตรวจสอบที่อยู่ก่อนยืนยันคำสั่งซื้อ", "ตรวจสอบยอดรวมอีกครั้งที่หน้าชำระเงิน", "ติดต่อร้านพร้อมแจ้งเลขคำสั่งซื้อ", "เพื่อดูสถานะการชำระเงินและการจัดส่ง", "เปิดเมนูคำสั่งซื้อ", "เมื่อเข้าสู่ระบบแล้ว", "จัดส่งฟรีเมื่อซื้อครบ", "จัดส่งฟรี", "ค่าจัดส่ง", "เหลือเพียง", "ตรวจยอด ", "กำลังเตรียม ", "พร้อมจัดส่ง ", "รอจัดส่ง", "พร้อมส่ง", "หน้าละ 20 รายการ", "ชำระผ่าน PromptPay", "แนบหลักฐานภายในเวลาที่กำหนด", "รับสินค้าแล้ว", "คำสั่งซื้อที่ยืนยันยอดแล้ว", "หมวดหมู่ทั้งหมด", "คำสั่งซื้อล่าสุด", "QR PromptPay ยอด ", "ดูรูปที่", "การสั่งซื้อและจัดส่ง", "SOLD OUT · ", "จัดส่งสินค้าแล้ว เลขติดตาม: "]
   result = fragments.sort((a, b) => b.length - a.length).reduce((text, source) => text.replaceAll(source, en[source] || auditedEn[source] || source), result);
   result = result.replace(/คำสั่งซื้อ #/g, auditedEn["คำสั่งซื้อ #"]);
   result = result.replace(/ และอีก (\d+) รายการ$/, (_, count) => ` and ${count} more ${count === "1" ? "item" : "items"}`);
@@ -170,5 +176,10 @@ export function localizePage(root, language = getLanguage()) {
   for (const element of root.querySelectorAll("[aria-label], [aria-description], [title], [placeholder], [alt]")) {
     for (const attr of ["aria-label", "aria-description", "title", "placeholder", "alt"])
       if (element.hasAttribute(attr)) element.setAttribute(attr, translateText(element.getAttribute(attr), language));
+  }
+  for (const element of root.querySelectorAll("[data-en-count-unit][data-count]")) {
+    const count = Number(element.dataset.count);
+    const unit = element.dataset.enCountUnit;
+    if (Number.isSafeInteger(count) && unit) element.textContent = ` ${count === 1 ? unit : `${unit}s`}`;
   }
 }
