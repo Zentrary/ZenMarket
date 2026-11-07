@@ -72,7 +72,6 @@ export async function renderHome({
         <h1 id="home-title">เลือกสิ่งที่ชอบ<span>ให้เป็นของคุณ<span class="home-title-dot">.</span></span></h1>
         <p class="home-description">${esc(store.tagline || "เลือกดูสินค้า สั่งซื้อ และติดตามคำสั่งซื้อได้ในที่เดียว")}</p>
         <div class="home-actions"><a class="btn primary" href="${startURL}">${session ? "เลือกดูสินค้า" : "เข้าสู่ระบบเพื่อเลือกซื้อ"} ${i("ArrowUpRight")}</a></div>
-        <div class="home-hero-note">${i("Headphones")}<span>มีคำถามก่อนสั่งซื้อ? <a href="/pages/contact.html">คุยกับร้านได้เลย</a></span></div>
       </div>
       <aside class="home-order-guide" aria-labelledby="home-guide-title">
         <div class="home-guide-top"><span>A BETTER WAY TO SHOP</span><span class="home-guide-icon">${i("ShoppingBag")}</span></div>
