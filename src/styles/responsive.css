@@ -1,0 +1,288 @@
+/* Responsive layout polish for the whole store.
+   This file is imported last (after base.css and spaces.css) so its rules
+   settle the conflicts between the older, layered style overrides.
+   Breakpoints follow the points where the real layouts start to feel cramped,
+   not just common device sizes. */
+
+/* 1. Never let a single wide child push the page sideways. */
+html,
+body {
+  overflow-x: clip;
+}
+img,
+svg,
+video,
+canvas,
+iframe {
+  max-width: 100%;
+}
+.wrap,
+.store-home,
+.workspace,
+.landing,
+main,
+.panel,
+.home-hero,
+.home-intro,
+.home-order-guide,
+.workspace-content,
+.section-heading,
+.catalog-tools,
+.category-pills {
+  min-width: 0;
+}
+/* Controls and labels stay inside their containers instead of stretching. */
+.user-chip,
+.cart-link,
+.notification-link,
+.pill,
+.status,
+.btn,
+.logout-btn,
+.workspace-sidebar nav a {
+  max-width: 100%;
+}
+
+/* 2. The landing hero stacks before its two columns become too narrow. */
+@media (max-width: 740px) {
+  .home-hero {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 30px;
+  }
+  .home-order-guide {
+    max-width: 560px;
+  }
+}
+
+/* 3. Owner workspace: the sidebar becomes a single, scrollable tab strip.
+      This gives the content the full page width on tablets and phones. */
+@media (max-width: 1000px) {
+  .workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .workspace-sidebar {
+    padding: 12px 16px;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .sidebar-label,
+  .workspace-sidebar > .back-link {
+    display: none;
+  }
+  .workspace-sidebar nav {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 6px;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: thin;
+    padding-bottom: 2px;
+  }
+  .workspace-sidebar nav a {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    min-height: 42px;
+    padding: 9px 12px;
+  }
+  body[data-space="admin"] .workspace-sidebar nav a.selected {
+    border-left: 0;
+    border-bottom: 2px solid #bcbcbc;
+  }
+}
+
+/* 4. Owner tables become readable cards instead of a sideways scroll.
+      Labels come from the data-label attributes on each cell. */
+@media (max-width: 820px) {
+  .table-scroll {
+    overflow-x: visible;
+  }
+  .table-scroll table {
+    display: block;
+    width: 100%;
+    white-space: normal;
+  }
+  .table-scroll thead {
+    display: none;
+  }
+  .table-scroll tbody {
+    display: grid;
+    gap: 12px;
+  }
+  .table-scroll tr {
+    display: block;
+    padding: 6px 16px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: #1a1a1a;
+  }
+  .table-scroll td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 11px 0;
+    border: 0;
+    border-bottom: 1px solid #2e2e2e;
+    text-align: right;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .table-scroll tr > td:last-child {
+    border-bottom: 0;
+  }
+  .table-scroll td::before {
+    content: attr(data-label);
+    flex: 0 0 auto;
+    color: var(--muted);
+    font-size: 11px;
+    text-align: left;
+  }
+  .table-scroll td:not([data-label])::before,
+  .table-scroll td[data-label=""]::before {
+    display: none;
+  }
+  .table-scroll .cell-value {
+    flex: 1 1 auto;
+    min-width: 0;
+    text-align: right;
+    overflow-wrap: anywhere;
+  }
+  .table-scroll td[data-label=""] .cell-value {
+    margin-left: auto;
+  }
+  .table-scroll .table-product {
+    justify-content: flex-end;
+  }
+  .table-scroll .table-product img {
+    width: 44px;
+    height: 44px;
+  }
+  .table-scroll .table-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 4px;
+  }
+  .table-scroll td.table-empty {
+    display: block;
+    padding: 26px 8px;
+    border: 0;
+    text-align: center;
+  }
+}
+
+/* 5. Forms: fixed minimum column widths caused the category button to
+      overflow its panel on tablets. */
+.category-create-form {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.8fr) minmax(0, auto);
+}
+@media (max-width: 700px) {
+  dialog .form-grid,
+  .operations-backup-form .form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .operations-status-pill {
+    margin-left: 0;
+    align-self: flex-start;
+  }
+  .operations-overview-top {
+    gap: 10px;
+  }
+}
+
+/* 6. Small-screen header: keep the shop name on the first row and all
+      controls on the second, with icon-only session buttons. The button
+      text stays available to screen readers (see aria-label / sr-only). */
+@media (max-width: 560px) {
+  .header-inner {
+    gap: 10px;
+  }
+  .header-actions {
+    gap: 6px;
+    row-gap: 8px;
+  }
+  .header-inner .user-chip {
+    display: none;
+  }
+  .header-inner .logout-btn,
+  .header-inner .btn[data-action="enter-customer-view"] {
+    width: 44px;
+    min-width: 44px;
+    padding: 0;
+    gap: 0;
+  }
+  .header-inner .logout-btn > span,
+  .header-inner .control-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+  .header-inner .notification-link {
+    padding: 8px;
+    gap: 6px;
+  }
+  .header-inner .notification-link b {
+    min-width: 18px;
+    padding: 2px 5px;
+  }
+  .guest-account-actions {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .guest-account-actions .btn {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+}
+
+/* 7. Phone-sized spacing and type. */
+@media (max-width: 480px) {
+  .panel,
+  .payment-card {
+    padding: 20px 16px;
+  }
+  .panel h2 {
+    font-size: 20px;
+  }
+  .page-head h1,
+  body[data-space="admin"] .page-head h1 {
+    font-size: clamp(23px, 6.6vw, 28px);
+  }
+  .page-head {
+    margin-bottom: 20px;
+  }
+  body[data-space="admin"] .workspace-content {
+    padding: 22px 14px;
+  }
+  .workspace-sidebar {
+    padding: 10px 14px;
+  }
+  .workspace-sidebar nav a {
+    font-size: 11px;
+    padding: 8px 10px;
+  }
+  .operations-card {
+    padding: 16px 14px;
+  }
+  dialog {
+    padding: 22px 18px;
+  }
+}
+
+/* 8. Very narrow phones: one product per row and full-width action rows. */
+@media (max-width: 380px) {
+  .product-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .button-row .btn {
+    flex: 1 1 100%;
+  }
+  .category-row .button-row {
+    justify-content: flex-start;
+  }
+}
