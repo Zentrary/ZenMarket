@@ -11,5 +11,12 @@ export const adminTabs = [
 ];
 
 export function adminSidebar(i, current) {
-  return `<aside class="workspace-sidebar"><span class="sidebar-label">จัดการร้านค้า</span><nav aria-label="เมนูหลังบ้าน">${adminTabs.map(([id, icon, label]) => `<a href="/admin/${id}.html" class="${current === id ? "selected" : ""}" ${current === id ? 'aria-current="page"' : ""}>${i(icon)} ${label}</a>`).join("")}</nav></aside>`;
+  const links = adminTabs
+    .map(
+      ([id, icon, label]) =>
+        `<a href="/admin/${id}.html" class="${current === id ? "selected" : ""}" ${current === id ? 'aria-current="page"' : ""}>${i(icon)}<span>${label}</span></a>`,
+    )
+    .join("");
+  const selected = adminTabs.find(([id]) => id === current) || adminTabs[0];
+  return `<details class="workspace-mobile-nav"><summary aria-label="เมนูหลังบ้าน"><span class="mobile-nav-current">${i(selected[1])}<strong>${selected[2]}</strong></span><span class="mobile-nav-toggle">${i("Menu")}</span></summary><nav aria-label="เมนูหลังบ้าน">${links}</nav></details><aside class="workspace-sidebar"><span class="sidebar-label">จัดการร้านค้า</span><nav aria-label="เมนูหลังบ้าน">${links}</nav></aside>`;
 }

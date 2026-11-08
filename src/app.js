@@ -314,7 +314,25 @@ function header() {
     ? `<span class="user-chip" aria-label="บัญชี ${esc(profile?.username || session.user.email)}">${i("UserRound")}<span>@${esc(profile?.username || session.user.email)}</span></span><button type="button" class="logout-btn" data-action="logout" aria-label="ออกจากระบบ">${i("LogOut")}<span>ออกจากระบบ</span></button>`
     : `<a class="btn secondary login-link" href="/auth/login.html">${i("UserRound")} เข้าสู่ระบบ</a><a class="btn primary register-link" href="/auth/register.html">สมัครสมาชิก</a>`;
   const ownerControls = `<a class="notification-link" href="/admin/operations.html" aria-label="แจ้งเตือนร้าน">${i("Mail")}<span class="control-label">แจ้งเตือน</span><b data-owner-alert-count>0</b></a><span class="owner-identity">${esc(profile?.username || "เจ้าของร้าน")}</span><button type="button" class="btn secondary" data-action="enter-customer-view" aria-label="มุมมองผู้ใช้">${i("Eye")}<span class="control-label">มุมมองผู้ใช้</span></button><button type="button" class="logout-btn" data-action="logout" aria-label="ออกจากระบบ">${i("LogOut")}<span>ออกจากระบบ</span></button>`;
-  return `<a class="skip-link" href="#main-content">ข้ามไปเนื้อหาหลัก</a><header class="${managing ? "admin-header" : ""}"><div class="header-inner">${brand()}${managing ? '<span class="workspace-tag">ระบบจัดการร้านค้า</span>' : `<nav id="main-nav" aria-label="เมนูหลัก">${links.map(([key, href, label]) => `<a class="${r === key ? "active" : ""}" ${r === key ? 'aria-current="page"' : ""} href="${href}">${label}</a>`).join("")}</nav>`}<div class="header-actions">${session && !managing ? `<a class="cart-link" href="/shop/cart.html" aria-label="ตะกร้าสินค้า">${i("ShoppingBag")}<b data-cart-count>${count()}</b></a>` : ""}<div class="session-controls${!session ? " guest-account-actions" : ""}">${managing ? ownerControls : account}</div>${!managing ? `<button class="icon-btn mobile-menu" data-action="menu" aria-label="เปิดเมนู" aria-controls="main-nav" aria-expanded="false">${i("Menu")}</button>` : ""}<div class="language-switcher" role="group" aria-label="เลือกภาษา"><button type="button" class="language-option ${language === "th" ? "active" : ""}" data-language="th" aria-pressed="${language === "th"}" title="ภาษาไทย">TH</button><button type="button" class="language-option ${language === "en" ? "active" : ""}" data-language="en" aria-pressed="${language === "en"}" title="English">EN</button></div></div></div></header>${customerView ? `<section class="customer-view-bar" aria-label="มุมมองผู้ใช้"><div><strong>มุมมองผู้ใช้</strong><span>ใช้บัญชีเจ้าของร้าน · การสั่งซื้อและแก้ไขข้อมูลเป็นรายการจริง</span></div><button type="button" class="btn secondary" data-action="exit-customer-view">${i("ArrowLeft")} ออกจากมุมมองผู้ใช้</button></section>` : ""}${!db ? '<div class="demo-banner">ยังไม่ได้เชื่อมต่อฐานข้อมูล — ไม่สามารถเข้าสู่ระบบหรือสั่งซื้อได้</div>' : ""}`;
+  const navigation = managing
+    ? '<span class="workspace-tag">ระบบจัดการร้านค้า</span>'
+    : `<nav id="main-nav" aria-label="เมนูหลัก">${links.map(([key, href, label]) => `<a class="${r === key ? "active" : ""}" ${r === key ? 'aria-current="page"' : ""} href="${href}">${label}</a>`).join("")}</nav>`;
+  const languageSwitcher = `<div class="language-switcher" role="group" aria-label="เลือกภาษา"><button type="button" class="language-option ${language === "th" ? "active" : ""}" data-language="th" aria-pressed="${language === "th"}" title="ภาษาไทย">TH</button><button type="button" class="language-option ${language === "en" ? "active" : ""}" data-language="en" aria-pressed="${language === "en"}" title="English">EN</button></div>`;
+  return `<a class="skip-link" href="#main-content">ข้ามไปเนื้อหาหลัก</a>
+    <header class="${managing ? "admin-header" : ""}">
+      <div class="header-inner">
+        ${brand()}
+        ${navigation}
+        <div class="header-actions">
+          ${session && !managing ? `<a class="cart-link" href="/shop/cart.html" aria-label="ตะกร้าสินค้า">${i("ShoppingBag")}<b data-cart-count>${count()}</b></a>` : ""}
+          <div class="session-controls${!session ? " guest-account-actions" : ""}">${managing ? ownerControls : account}</div>
+          ${!managing ? `<button class="icon-btn mobile-menu" data-action="menu" aria-label="เปิดเมนู" aria-controls="main-nav" aria-expanded="false">${i("Menu")}</button>` : ""}
+        </div>
+        ${languageSwitcher}
+      </div>
+    </header>
+    ${customerView ? `<section class="customer-view-bar" aria-label="มุมมองผู้ใช้"><div><strong>มุมมองผู้ใช้</strong><span>ใช้บัญชีเจ้าของร้าน · การสั่งซื้อและแก้ไขข้อมูลเป็นรายการจริง</span></div><button type="button" class="btn secondary" data-action="exit-customer-view">${i("ArrowLeft")} ออกจากมุมมองผู้ใช้</button></section>` : ""}
+    ${!db ? '<div class="demo-banner">ยังไม่ได้เชื่อมต่อฐานข้อมูล — ไม่สามารถเข้าสู่ระบบหรือสั่งซื้อได้</div>' : ""}`;
 }
 const empty = (
   title,
@@ -638,6 +656,17 @@ document.addEventListener("click", async (e) => {
     main?.setAttribute("tabindex", "-1");
     main?.focus();
     return;
+  }
+  const adminNavigation = e.target.closest(".workspace-mobile-nav");
+  document.querySelectorAll(".workspace-mobile-nav[open]").forEach((menu) => {
+    if (menu !== adminNavigation) menu.open = false;
+  });
+  if (!e.target.closest("#main-nav") && !e.target.closest('[data-action="menu"]')) {
+    const navigation = $("#main-nav");
+    navigation?.classList.remove("open");
+    const menuButton = $('[data-action="menu"]');
+    menuButton?.setAttribute("aria-expanded", "false");
+    menuButton?.setAttribute("aria-label", "เปิดเมนู");
   }
   const languageButton = e.target.closest("button[data-language]");
   if (languageButton) {
@@ -1535,6 +1564,11 @@ document.addEventListener("keydown", (e) => {
       toggle?.setAttribute("aria-expanded", "false");
       toggle?.setAttribute("aria-label", "เปิดเมนู");
       toggle?.focus();
+    }
+    const adminMenu = $(".workspace-mobile-nav[open]");
+    if (adminMenu) {
+      adminMenu.open = false;
+      adminMenu.querySelector("summary")?.focus();
     }
   }
 });
