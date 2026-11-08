@@ -28,6 +28,7 @@ const en = {
   "ชำระผ่าน PromptPay": "Pay with PromptPay", "แนบสลิปให้ร้านตรวจสอบ": "Upload your slip for verification",
   "จัดส่งฟรี": "Free shipping", "ตรวจสอบที่อยู่ก่อนยืนยันคำสั่งซื้อ": "Review your address before confirming your order",
   "HOW TO ORDER": "HOW TO ORDER", "สั่งซื้อง่าย ใน 3 ขั้นตอน": "Order in 3 easy steps", "ตั้งแต่เลือกสินค้า จนถึงวันรับของ": "From choosing your items to delivery",
+  "ข้อมูลร้านและโลโก้": "Store details and logo", "อัปโหลดโลโก้ร้าน": "Upload store logo", "PNG, JPG, WebP ไม่เกิน 5 MB · แนะนำภาพสี่เหลี่ยมจัตุรัส": "PNG, JPG, or WebP up to 5 MB · Square image recommended", "นำโลโก้ปัจจุบันออก": "Remove current logo", "เลือกสินค้าที่ถูกใจ": "Choose products you love",
   "เข้าสู่ระบบเพื่อดูสินค้า เลือกจำนวน และเพิ่มลงตะกร้า ตรวจสอบรายการก่อนสั่งซื้อ": "Log in to browse, choose quantities, and add items to your cart. Review your order before checkout.",
   "กรอกที่อยู่จัดส่ง ชำระผ่าน QR PromptPay ของคำสั่งซื้อ แล้วแนบหลักฐานภายในเวลาที่กำหนด": "Enter your shipping address, pay using your order's PromptPay QR code, then upload proof within the time limit.",
   "ร้านตรวจสอบการชำระเงินก่อนจัดส่ง ดูสถานะและข้อมูลจัดส่งได้จากหน้าคำสั่งซื้อของคุณ": "We verify your payment before shipping. Track your order and delivery details from your Orders page.",
@@ -147,7 +148,7 @@ export function translateText(value, language = getLanguage()) {
   result = result.replace(/(\d+) ชิ้น/g, (_, count) => `${count} ${count === "1" ? "item" : "items"}`);
   result = result.replace(/(\d+) สินค้า/g, (_, count) => `${count} ${count === "1" ? "product" : "products"}`);
   result = result.replace(/(\d+) รีวิว/g, (_, count) => `${count} ${count === "1" ? "review" : "reviews"}`);
-  const fragments = ["ตรวจสอบที่อยู่ก่อนยืนยันคำสั่งซื้อ", "ตรวจสอบยอดรวมอีกครั้งที่หน้าชำระเงิน", "ติดต่อร้านพร้อมแจ้งเลขคำสั่งซื้อ", "เพื่อดูสถานะการชำระเงินและการจัดส่ง", "เปิดเมนูคำสั่งซื้อ", "เมื่อเข้าสู่ระบบแล้ว", "จัดส่งฟรีเมื่อซื้อครบ", "จัดส่งฟรี", "ค่าจัดส่ง", "เหลือเพียง", "ตรวจยอด ", "กำลังเตรียม ", "พร้อมจัดส่ง ", "รอจัดส่ง", "พร้อมส่ง", "หน้าละ 20 รายการ", "ชำระผ่าน PromptPay", "แนบหลักฐานภายในเวลาที่กำหนด", "รับสินค้าแล้ว", "คำสั่งซื้อที่ยืนยันยอดแล้ว", "หมวดหมู่ทั้งหมด", "คำสั่งซื้อล่าสุด", "QR PromptPay ยอด ", "ดูรูปที่", "การสั่งซื้อและจัดส่ง", "SOLD OUT · ", "จัดส่งสินค้าแล้ว เลขติดตาม: "]
+  const fragments = ["ตรวจสอบที่อยู่ก่อนยืนยันคำสั่งซื้อ", "ตรวจสอบยอดรวมอีกครั้งที่หน้าชำระเงิน", "ติดต่อร้านพร้อมแจ้งเลขคำสั่งซื้อ", "เพื่อดูสถานะการชำระเงินและการจัดส่ง", "เปิดเมนูคำสั่งซื้อ", "เมื่อเข้าสู่ระบบแล้ว", "จัดส่งฟรีเมื่อซื้อครบ", "จัดส่งฟรี", "ค่าจัดส่ง", "เหลือเพียง", "ตรวจยอด ", "กำลังเตรียม ", "พร้อมจัดส่ง ", "รอจัดส่ง", "พร้อมส่ง", "หน้าละ 20 รายการ", "ชำระผ่าน PromptPay", "แนบหลักฐานภายในเวลาที่กำหนด", "รับสินค้าแล้ว", "คำสั่งซื้อที่ยืนยันยอดแล้ว", "หมวดหมู่ทั้งหมด", "คำสั่งซื้อล่าสุด", "QR PromptPay ยอด ", "ดูรูปที่", "การสั่งซื้อและจัดส่ง", "ผู้ซื้อยืนยันรับสินค้าแล้ว · ", "SOLD OUT · ", "จัดส่งสินค้าแล้ว เลขติดตาม: "]
   result = fragments.sort((a, b) => b.length - a.length).reduce((text, source) => text.replaceAll(source, en[source] || auditedEn[source] || source), result);
   result = result.replace(/คำสั่งซื้อ #/g, auditedEn["คำสั่งซื้อ #"]);
   result = result.replace(/ และอีก (\d+) รายการ$/, (_, count) => ` and ${count} more ${count === "1" ? "item" : "items"}`);
